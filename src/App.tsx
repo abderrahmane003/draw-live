@@ -171,7 +171,7 @@ function WhiteboardRoom() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-white select-none">
+    <div className="h-[100dvh] w-full flex flex-col overflow-hidden bg-white select-none">
       {/* Top Presence & Room Header */}
       <PresenceBar
         roomId={cleanRoomId}

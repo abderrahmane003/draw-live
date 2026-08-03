@@ -375,7 +375,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full overflow-hidden select-none bg-slate-50 cursor-crosshair ${
+      className={`relative w-full h-full overflow-hidden select-none bg-slate-50 cursor-crosshair touch-none ${
         showGrid ? 'bg-grid-pattern' : ''
       }`}
       onMouseDown={handleMouseDown}

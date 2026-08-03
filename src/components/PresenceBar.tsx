@@ -58,30 +58,30 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
   };
 
   return (
-    <div className="bg-amber-300 border-b-4 border-slate-900 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 text-xs z-30 select-none font-fun">
+    <div className="bg-amber-300 border-b-4 border-slate-900 px-3 sm:px-6 py-2 flex items-center justify-between gap-2.5 text-xs z-30 select-none font-fun overflow-x-auto shrink-0 whitespace-nowrap">
       {/* Left: Brand Logo & Room Badge */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5 shrink-0">
         <button
           onClick={() => navigate('/')}
-          className="w-10 h-10 bg-pink-500 hover:bg-pink-400 border-3 border-slate-900 rounded-2xl flex items-center justify-center text-white cartoon-shadow cartoon-btn shrink-0 cursor-pointer"
+          className="w-9 h-9 sm:w-10 sm:h-10 bg-pink-500 hover:bg-pink-400 border-3 border-slate-900 rounded-2xl flex items-center justify-center text-white cartoon-shadow cartoon-btn shrink-0 cursor-pointer"
           title="Retour à l'accueil"
         >
           <Home className="w-5 h-5 stroke-[2.5]" />
         </button>
         <div>
-          <h1 className="font-black text-slate-900 text-base sm:text-lg leading-tight tracking-wide flex items-center gap-2">
+          <h1 className="font-black text-slate-900 text-sm sm:text-lg leading-tight tracking-wide flex items-center gap-1.5">
             Flowboard ✨
           </h1>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-xs text-slate-900 font-extrabold">
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[11px] sm:text-xs text-slate-900 font-extrabold hidden sm:inline">
               Room:
             </span>
-            <span className="font-mono text-xs font-black text-slate-900 bg-white border-2 border-slate-900 px-2 py-0.5 rounded-xl shadow-xs">
+            <span className="font-mono text-[11px] sm:text-xs font-black text-slate-900 bg-white border-2 border-slate-900 px-1.5 sm:px-2 py-0.5 rounded-xl shadow-xs">
               #{roomId || '...'}
             </span>
             <button
               onClick={onOpenRoomModal}
-              className="flex items-center gap-1.5 text-slate-900 bg-yellow-400 hover:bg-yellow-300 border-2 border-slate-900 px-2.5 py-0.5 rounded-xl font-extrabold text-xs cartoon-btn"
+              className="flex items-center gap-1 sm:gap-1.5 text-slate-900 bg-yellow-400 hover:bg-yellow-300 border-2 border-slate-900 px-2 sm:px-2.5 py-0.5 rounded-xl font-extrabold text-[11px] sm:text-xs cartoon-btn shrink-0 cursor-pointer"
               title="Changer de room ou voir toutes les rooms ouvertes"
             >
               <Plus className="w-3.5 h-3.5 stroke-[3]" />

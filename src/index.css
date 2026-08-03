@@ -60,8 +60,9 @@ body {
   padding: 0;
   font-family: 'Fredoka', 'Quicksand', system-ui, -apple-system, sans-serif;
   user-select: none;
-  overflow: hidden;
   background-color: #fefce8;
+  overflow-x: hidden;
+  touch-action: manipulation;
 }
 
 
