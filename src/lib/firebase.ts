@@ -12,10 +12,11 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || appletConfig.appId,
 };
 
+const envDbId = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID;
+const configDbId = appletConfig.firestoreDatabaseId;
 const databaseId =
-  appletConfig.firestoreDatabaseId && appletConfig.firestoreDatabaseId !== '(default)'
-    ? appletConfig.firestoreDatabaseId
-    : undefined;
+  (envDbId && envDbId !== '(default)' ? envDbId : undefined) ||
+  (configDbId && configDbId !== '(default)' ? configDbId : undefined);
 
 const app: FirebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 

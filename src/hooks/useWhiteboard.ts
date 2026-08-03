@@ -144,8 +144,9 @@ export function useWhiteboard(
       if (!roomId || !userId) return;
 
       const now = Date.now();
-      // Throttle presence updates to max once per 30ms unless drawing
-      if (now - lastPresenceUpdateRef.current < 30 && cursor !== null && !isDrawing) {
+      // Throttle presence updates: 60ms for cursor move, 80ms while drawing to avoid flooding Firestore writes
+      const minInterval = isDrawing ? 80 : 60;
+      if (now - lastPresenceUpdateRef.current < minInterval && cursor !== null) {
         return;
       }
       lastPresenceUpdateRef.current = now;
@@ -161,7 +162,9 @@ export function useWhiteboard(
       };
 
       if (isDrawing && drawingDetails?.points?.length) {
-        payload.drawingPoints = drawingDetails.points;
+        const pts = drawingDetails.points;
+        // Keep live drawing preview points bounded to avoid large payload writes
+        payload.drawingPoints = pts.length > 40 ? pts.slice(-40) : pts;
         payload.drawingTool = drawingDetails.tool || 'pen';
         payload.drawingColor = drawingDetails.color || '#000000';
         payload.drawingSize = drawingDetails.size || 6;
@@ -169,7 +172,9 @@ export function useWhiteboard(
         payload.drawingPoints = [];
       }
 
-      setDoc(userPresenceRef, payload, { merge: true }).catch(() => {});
+      setDoc(userPresenceRef, payload, { merge: true }).catch((err) => {
+        console.warn('Presence update error:', err);
+      });
     },
     [roomId, userId, userName, userColor]
   );
@@ -228,7 +233,15 @@ export function useWhiteboard(
     try {
       await setDoc(strokeRef, newStroke);
       const roomRef = doc(db, 'rooms', roomId);
-      updateDoc(roomRef, { lastModified: timestamp }).catch(() => {});
+      setDoc(
+        roomRef,
+        {
+          id: roomId,
+          name: roomInfo?.name || `Tableau #${roomId}`,
+          lastModified: timestamp,
+        },
+        { merge: true }
+      ).catch(() => {});
     } catch (err) {
       console.error('Error saving stroke to Firestore:', err);
     }
@@ -271,10 +284,15 @@ export function useWhiteboard(
     const now = Date.now();
     const roomRef = doc(db, 'rooms', roomId);
 
-    await updateDoc(roomRef, {
-      clearTimestamp: now,
-      lastModified: now,
-    });
+    await setDoc(
+      roomRef,
+      {
+        id: roomId,
+        clearTimestamp: now,
+        lastModified: now,
+      },
+      { merge: true }
+    );
 
     setUserUndoStack([]);
   };

@@ -54,9 +54,15 @@ export function HomePage() {
     const roomsRef = collection(db, 'rooms');
     const q = query(roomsRef, orderBy('lastModified', 'desc'), limit(30));
 
+    let presenceUnsubs: (() => void)[] = [];
+
     const unsubRooms = onSnapshot(
       q,
       (snapshot) => {
+        // Clean up previous presence listeners
+        presenceUnsubs.forEach((unsub) => unsub());
+        presenceUnsubs = [];
+
         const fetchedRooms: RoomInfo[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
@@ -76,10 +82,16 @@ export function HomePage() {
         }
 
         const roomPresenceMap: Record<string, number> = {};
+        let currentRoomList = fetchedRooms.map((r) => ({
+          ...r,
+          activeUsersCount: 0,
+        }));
+        setRooms(currentRoomList);
+        setLoading(false);
 
         fetchedRooms.forEach((room) => {
           const presenceRef = collection(db, 'rooms', room.id, 'presence');
-          onSnapshot(presenceRef, (presenceSnap) => {
+          const pUnsub = onSnapshot(presenceRef, (presenceSnap) => {
             const now = Date.now();
             let count = 0;
             presenceSnap.forEach((pDoc) => {
@@ -90,14 +102,15 @@ export function HomePage() {
             });
             roomPresenceMap[room.id] = count;
 
-            setRooms(
-              fetchedRooms.map((r) => ({
-                ...r,
-                activeUsersCount: roomPresenceMap[r.id] || 0,
-              }))
+            setRooms((prev) =>
+              prev.map((r) =>
+                r.id === room.id
+                  ? { ...r, activeUsersCount: roomPresenceMap[room.id] || 0 }
+                  : r
+              )
             );
-            setLoading(false);
           });
+          presenceUnsubs.push(pUnsub);
         });
       },
       (err) => {
@@ -106,7 +119,10 @@ export function HomePage() {
       }
     );
 
-    return () => unsubRooms();
+    return () => {
+      unsubRooms();
+      presenceUnsubs.forEach((unsub) => unsub());
+    };
   }, []);
 
   const handleCreateNewRoom = () => {
