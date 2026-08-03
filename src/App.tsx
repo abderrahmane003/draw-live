@@ -17,7 +17,7 @@ function WhiteboardRoom() {
 
   const cleanRoomId = (rawRoomId || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '') || generateRandomRoomId();
 
-  const { user, loading: authLoading, userName, userColor, updateProfile } = useAuth();
+  const { user, userId, loading: authLoading, userName, userColor, updateProfile } = useAuth();
 
   const [activeTool, setActiveTool] = useState<StrokeType>('pen');
   const [currentColor, setCurrentColor] = useState<string>('#0F172A');
@@ -39,7 +39,7 @@ function WhiteboardRoom() {
     canUndo,
     canRedo,
     isConnected,
-  } = useWhiteboard(cleanRoomId, user?.uid, userName, userColor);
+  } = useWhiteboard(cleanRoomId, userId, userName, userColor);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -212,7 +212,7 @@ function WhiteboardRoom() {
           onStrokeComplete={addStroke}
           onCursorMove={updatePresence}
           activeUsers={activeUsers}
-          currentUserId={user?.uid}
+          currentUserId={userId}
           showGrid={showGrid}
         />
       </main>

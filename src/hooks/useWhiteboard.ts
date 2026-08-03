@@ -180,7 +180,7 @@ export function useWhiteboard(
   // Filter valid strokes taking room clearTimestamp into account
   const validStrokes = strokes.filter((s) => {
     if (s.deleted) return false;
-    if (roomInfo?.clearTimestamp && s.timestamp <= roomInfo.clearTimestamp) {
+    if (roomInfo?.clearTimestamp && s.timestamp < roomInfo.clearTimestamp) {
       return false;
     }
     return true;
@@ -193,20 +193,29 @@ export function useWhiteboard(
     if (!roomId) throw new Error('No room selected');
 
     const strokeRef = doc(collection(db, 'rooms', roomId, 'strokes'));
-    const timestamp = Date.now();
+    const minTimestamp = (roomInfo?.clearTimestamp || 0) + 1;
+    const timestamp = Math.max(Date.now(), minTimestamp);
 
-    const newStroke = {
+    const newStroke: Stroke = {
       ...strokeData,
       id: strokeRef.id,
       timestamp,
       deleted: false,
     };
 
-    await setDoc(strokeRef, newStroke);
+    // Optimistically add to local state immediately so line never disappears
+    setStrokes((prev) => {
+      if (prev.some((s) => s.id === newStroke.id)) return prev;
+      return [...prev, newStroke];
+    });
 
-    // Update room lastModified
-    const roomRef = doc(db, 'rooms', roomId);
-    updateDoc(roomRef, { lastModified: timestamp }).catch(() => {});
+    try {
+      await setDoc(strokeRef, newStroke);
+      const roomRef = doc(db, 'rooms', roomId);
+      updateDoc(roomRef, { lastModified: timestamp }).catch(() => {});
+    } catch (err) {
+      console.error('Error saving stroke to Firestore:', err);
+    }
 
     // Clear local redo stack when drawing a new stroke
     setUserUndoStack([]);

@@ -5,6 +5,14 @@ import { generateRandomUser } from '../lib/utils';
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fallbackUserId] = useState<string>(() => {
+    let id = localStorage.getItem('whiteboard_anon_uid');
+    if (!id) {
+      id = 'anon_' + Math.random().toString(36).substring(2, 11);
+      localStorage.setItem('whiteboard_anon_uid', id);
+    }
+    return id;
+  });
   const [userName, setUserName] = useState<string>(() => {
     return localStorage.getItem('whiteboard_username') || '';
   });
@@ -52,6 +60,7 @@ export function useAuth() {
 
   return {
     user,
+    userId: user?.uid || fallbackUserId,
     loading,
     userName,
     userColor,
