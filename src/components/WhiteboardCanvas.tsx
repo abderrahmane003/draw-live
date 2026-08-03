@@ -8,7 +8,16 @@ interface WhiteboardCanvasProps {
   currentColor: string;
   brushSize: number;
   onStrokeComplete: (stroke: Omit<Stroke, 'id' | 'timestamp'>) => void;
-  onCursorMove: (cursor: Point | null, isDrawing: boolean) => void;
+  onCursorMove: (
+    cursor: Point | null,
+    isDrawing: boolean,
+    drawingDetails?: {
+      points?: Point[];
+      tool?: StrokeType;
+      color?: string;
+      size?: number;
+    }
+  ) => void;
   activeUsers: UserPresence[];
   currentUserId: string | undefined;
   showGrid?: boolean;
@@ -187,7 +196,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     });
   }, [strokes, dimensions, drawStrokeOnCtx]);
 
-  // Redraw local active preview canvas while drawing (0ms latency for active user)
+  // Redraw local and remote active preview strokes while drawing (0ms latency for all users)
   useEffect(() => {
     const previewCanvas = previewCanvasRef.current;
     if (!previewCanvas) return;
@@ -198,6 +207,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     const { width, height } = dimensions;
     ctx.clearRect(0, 0, width, height);
 
+    // 1. Draw local active stroke in progress
     if (isDrawing && currentPoints.length > 0) {
       drawStrokeOnCtx(
         ctx,
@@ -209,12 +219,34 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         height
       );
     }
+
+    // 2. Draw remote active strokes in progress from other active users
+    activeUsers.forEach((user) => {
+      if (
+        user.userId !== currentUserId &&
+        user.isDrawing &&
+        user.drawingPoints &&
+        user.drawingPoints.length > 0
+      ) {
+        drawStrokeOnCtx(
+          ctx,
+          user.drawingPoints,
+          user.drawingTool || 'pen',
+          user.drawingColor || user.userColor,
+          user.drawingSize || 6,
+          width,
+          height
+        );
+      }
+    });
   }, [
     isDrawing,
     currentPoints,
     activeTool,
     currentColor,
     brushSize,
+    activeUsers,
+    currentUserId,
     dimensions,
     drawStrokeOnCtx,
   ]);
@@ -248,9 +280,15 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     const point = getCanvasPoint(clientX, clientY);
     if (!point) return;
 
+    const initialPoints = [point];
     setIsDrawing(true);
-    setCurrentPoints([point]);
-    onCursorMove(point, true);
+    setCurrentPoints(initialPoints);
+    onCursorMove(point, true, {
+      points: initialPoints,
+      tool: activeTool,
+      color: currentColor,
+      size: brushSize,
+    });
   };
 
   // Move Drawing
@@ -258,10 +296,19 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     const point = getCanvasPoint(clientX, clientY);
 
     if (isDrawing && point) {
-      setCurrentPoints((prev) => [...prev, point]);
+      setCurrentPoints((prev) => {
+        const nextPoints = [...prev, point];
+        onCursorMove(point, true, {
+          points: nextPoints,
+          tool: activeTool,
+          color: currentColor,
+          size: brushSize,
+        });
+        return nextPoints;
+      });
+    } else {
+      onCursorMove(point, false);
     }
-
-    onCursorMove(point, isDrawing);
   };
 
   // End Drawing

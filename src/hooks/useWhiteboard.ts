@@ -14,7 +14,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Stroke, UserPresence, RoomInfo, Point } from '../types';
+import { Stroke, StrokeType, UserPresence, RoomInfo, Point } from '../types';
 
 export function useWhiteboard(
   roomId: string,
@@ -131,29 +131,45 @@ export function useWhiteboard(
 
   // Update current user presence
   const updatePresence = useCallback(
-    (cursor: Point | null, isDrawing: boolean) => {
+    (
+      cursor: Point | null,
+      isDrawing: boolean,
+      drawingDetails?: {
+        points?: Point[];
+        tool?: StrokeType;
+        color?: string;
+        size?: number;
+      }
+    ) => {
       if (!roomId || !userId) return;
 
       const now = Date.now();
-      // Throttle presence updates to max once per 40ms unless drawing status changes
-      if (now - lastPresenceUpdateRef.current < 40 && cursor !== null) {
+      // Throttle presence updates to max once per 30ms unless drawing
+      if (now - lastPresenceUpdateRef.current < 30 && cursor !== null && !isDrawing) {
         return;
       }
       lastPresenceUpdateRef.current = now;
 
       const userPresenceRef = doc(db, 'rooms', roomId, 'presence', userId);
-      setDoc(
-        userPresenceRef,
-        {
-          userId,
-          userName,
-          userColor,
-          cursor,
-          isDrawing,
-          lastSeen: now,
-        },
-        { merge: true }
-      ).catch(() => {});
+      const payload: Partial<UserPresence> = {
+        userId,
+        userName,
+        userColor,
+        cursor,
+        isDrawing,
+        lastSeen: now,
+      };
+
+      if (isDrawing && drawingDetails?.points?.length) {
+        payload.drawingPoints = drawingDetails.points;
+        payload.drawingTool = drawingDetails.tool || 'pen';
+        payload.drawingColor = drawingDetails.color || '#000000';
+        payload.drawingSize = drawingDetails.size || 6;
+      } else {
+        payload.drawingPoints = [];
+      }
+
+      setDoc(userPresenceRef, payload, { merge: true }).catch(() => {});
     },
     [roomId, userId, userName, userColor]
   );

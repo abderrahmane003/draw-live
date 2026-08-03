@@ -2,16 +2,15 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read/write for all authenticated users (including anonymous auth)
     match /rooms/{roomId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
 
       match /strokes/{strokeId} {
-        allow read, write: if request.auth != null;
+        allow read, write: if true;
       }
 
       match /presence/{presenceId} {
-        allow read, write: if request.auth != null;
+        allow read, write: if true;
       }
     }
   }

@@ -23,6 +23,10 @@ export interface UserPresence {
   userColor: string;
   cursor: Point | null; // Normalized coordinate 0..1 or null if off canvas
   isDrawing: boolean;
+  drawingPoints?: Point[];
+  drawingTool?: StrokeType;
+  drawingColor?: string;
+  drawingSize?: number;
   lastSeen: number;
 }
 
