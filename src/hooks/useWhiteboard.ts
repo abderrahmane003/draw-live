@@ -196,7 +196,7 @@ export function useWhiteboard(
   // Filter valid strokes taking room clearTimestamp into account
   const validStrokes = strokes.filter((s) => {
     if (s.deleted) return false;
-    if (roomInfo?.clearTimestamp && s.timestamp < roomInfo.clearTimestamp) {
+    if (roomInfo?.clearTimestamp && s.timestamp <= roomInfo.clearTimestamp) {
       return false;
     }
     return true;
@@ -271,11 +271,13 @@ export function useWhiteboard(
     const now = Date.now();
     const roomRef = doc(db, 'rooms', roomId);
 
-    await updateDoc(roomRef, {
-      clearTimestamp: now,
-      lastModified: now,
-    });
+    try {
+      await setDoc(roomRef, { clearTimestamp: now, lastModified: now }, { merge: true });
+    } catch (err) {
+      console.error('Error clearing room in Firestore:', err);
+    }
 
+    setStrokes([]);
     setUserUndoStack([]);
   };
 

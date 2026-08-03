@@ -1,104 +1,73 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { RoomInfo } from '../types';
-import { generateRandomRoomId } from '../lib/utils';
+import { useAuth } from '../hooks/useAuth';
+import { generateRandomRoomId, formatTimeAgo } from '../lib/utils';
 import {
-  Sparkles,
+  Paintbrush,
+  Plus,
   ArrowRight,
   Globe,
   Clock,
   Users,
-  Plus,
-  Pencil,
   Search,
-  Check,
-  RefreshCw,
-  Palette,
-  Paintbrush,
+  Sparkles,
   Star,
+  Palette,
   Smile,
+  Pencil,
+  Check,
   Wand2,
-  Gamepad2,
+  RefreshCw,
 } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
 
-interface RoomWithPresence extends RoomInfo {
+interface RoomSummary {
+  id: string;
+  name: string;
+  lastModified: number;
   activeUsersCount: number;
 }
 
 const CARD_COLORS = [
-  'bg-pink-100 border-pink-400 text-pink-900',
-  'bg-amber-100 border-amber-400 text-amber-900',
-  'bg-emerald-100 border-emerald-400 text-emerald-900',
-  'bg-sky-100 border-sky-400 text-sky-900',
-  'bg-purple-100 border-purple-400 text-purple-900',
-  'bg-orange-100 border-orange-400 text-orange-900',
+  'bg-pink-100 border-pink-500 text-pink-900',
+  'bg-amber-100 border-amber-500 text-amber-900',
+  'bg-sky-100 border-sky-500 text-sky-900',
+  'bg-emerald-100 border-emerald-500 text-emerald-900',
+  'bg-purple-100 border-purple-500 text-purple-900',
 ];
 
-export function HomePage() {
+export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { userName, userColor, updateProfile } = useAuth();
 
   const [inputRoomCode, setInputRoomCode] = useState('');
-  const [rooms, setRooms] = useState<RoomWithPresence[]>([]);
+  const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(userName);
 
-  // Subscribe to rooms in Firestore
+  // Real-time sync of available rooms
   useEffect(() => {
     const roomsRef = collection(db, 'rooms');
-    const q = query(roomsRef, orderBy('lastModified', 'desc'), limit(30));
+    const q = query(roomsRef, orderBy('lastModified', 'desc'));
 
-    const unsubRooms = onSnapshot(
+    const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const fetchedRooms: RoomInfo[] = [];
+        const list: RoomSummary[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          fetchedRooms.push({
+          list.push({
             id: docSnap.id,
             name: data.name || `Tableau #${docSnap.id}`,
-            createdAt: data.createdAt || Date.now(),
-            lastModified: data.lastModified || Date.now(),
-            clearTimestamp: data.clearTimestamp || 0,
+            lastModified: data.lastModified || data.createdAt || Date.now(),
+            activeUsersCount: 0,
           });
         });
-
-        if (fetchedRooms.length === 0) {
-          setRooms([]);
-          setLoading(false);
-          return;
-        }
-
-        const roomPresenceMap: Record<string, number> = {};
-
-        fetchedRooms.forEach((room) => {
-          const presenceRef = collection(db, 'rooms', room.id, 'presence');
-          onSnapshot(presenceRef, (presenceSnap) => {
-            const now = Date.now();
-            let count = 0;
-            presenceSnap.forEach((pDoc) => {
-              const pData = pDoc.data();
-              if (now - (pData.lastSeen || 0) < 25000) {
-                count++;
-              }
-            });
-            roomPresenceMap[room.id] = count;
-
-            setRooms(
-              fetchedRooms.map((r) => ({
-                ...r,
-                activeUsersCount: roomPresenceMap[r.id] || 0,
-              }))
-            );
-            setLoading(false);
-          });
-        });
+        setRooms(list);
+        setLoading(false);
       },
       (err) => {
         console.error('Error fetching rooms:', err);
@@ -106,19 +75,23 @@ export function HomePage() {
       }
     );
 
-    return () => unsubRooms();
+    return () => unsubscribe();
   }, []);
 
   const handleCreateNewRoom = () => {
-    const newId = generateRandomRoomId();
-    navigate(`/room/${newId}`);
+    const newCode = generateRandomRoomId();
+    navigate(`/room/${newCode}`);
   };
 
   const handleJoinByCode = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputRoomCode.trim()) return;
-    const clean = inputRoomCode.toUpperCase().replace(/[^A-Z0-9_-]/g, '');
-    navigate(`/room/${clean}`);
+    if (inputRoomCode.trim()) {
+      const cleanCode = inputRoomCode
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9_-]/g, '');
+      navigate(`/room/${cleanCode}`);
+    }
   };
 
   const handleSaveProfile = () => {
@@ -128,22 +101,10 @@ export function HomePage() {
     }
   };
 
-  const formatTimeAgo = (timestamp: number) => {
-    const diff = Math.floor((Date.now() - timestamp) / 1000);
-    if (diff < 15) return 'À l\'instant';
-    if (diff < 60) return `Il y a ${diff}s`;
-    const mins = Math.floor(diff / 60);
-    if (mins < 60) return `Il y a ${mins} min`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `Il y a ${hours}h`;
-    const days = Math.floor(hours / 24);
-    return `Il y a ${days}j`;
-  };
-
   const filteredRooms = rooms.filter(
     (r) =>
-      r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.name.toLowerCase().includes(searchQuery.toLowerCase())
+      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -191,7 +152,7 @@ export function HomePage() {
                 onClick={handleSaveProfile}
                 className="p-1.5 bg-emerald-400 hover:bg-emerald-300 text-slate-900 font-bold rounded-xl border-2 border-slate-900 cartoon-btn"
               >
-                <Check className="w-4 h-4" />
+                <Check className="w-4 h-4 stroke-[3]" />
               </button>
             </div>
           ) : (
@@ -234,10 +195,10 @@ export function HomePage() {
             </p>
 
             {/* Actions Grid */}
-            <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <div className="pt-2 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
               <button
                 onClick={handleCreateNewRoom}
-                className="px-6 py-4 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-extrabold text-base transition-all border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-3"
+                className="px-6 py-4 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-extrabold text-base transition-all border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-3 cursor-pointer"
               >
                 <Plus className="w-6 h-6 stroke-[3]" />
                 <span>Nouveau Tableau Blanc 🚀</span>
@@ -255,7 +216,7 @@ export function HomePage() {
                 <button
                   type="submit"
                   disabled={!inputRoomCode.trim()}
-                  className="px-5 py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 disabled:opacity-40 text-slate-900 font-extrabold text-xs sm:text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-2 shrink-0"
+                  className="px-5 py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 disabled:opacity-40 text-slate-900 font-extrabold text-xs sm:text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-2 shrink-0 cursor-pointer"
                 >
                   <span>Entrer</span>
                   <ArrowRight className="w-5 h-5 stroke-[3]" />
@@ -316,21 +277,21 @@ export function HomePage() {
               </div>
               <button
                 onClick={handleCreateNewRoom}
-                className="px-6 py-3 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-black text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn inline-flex items-center gap-2"
+                className="px-6 py-3 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-black text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn inline-flex items-center gap-2 cursor-pointer"
               >
                 <Plus className="w-5 h-5 stroke-[3]" />
                 <span>Créer une room rigolote</span>
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredRooms.map((room, idx) => {
                 const colorStyle = CARD_COLORS[idx % CARD_COLORS.length];
                 return (
                   <div
                     key={room.id}
                     onClick={() => navigate(`/room/${room.id}`)}
-                    className={`group bg-white hover:bg-amber-50 border-3 border-slate-900 rounded-3xl p-5 transition-all duration-150 cursor-pointer cartoon-shadow cartoon-btn flex flex-col justify-between space-y-4 relative overflow-hidden`}
+                    className="group bg-white hover:bg-amber-50 border-3 border-slate-900 rounded-3xl p-5 transition-all duration-150 cursor-pointer cartoon-shadow cartoon-btn flex flex-col justify-between space-y-4 relative overflow-hidden"
                   >
                     {/* Top Header of Card */}
                     <div className="flex items-start justify-between gap-3">
@@ -387,10 +348,9 @@ export function HomePage() {
       {/* Playful Footer */}
       <footer className="border-t-4 border-slate-900 bg-amber-300 py-6 text-center text-xs font-black text-slate-900">
         <p className="flex items-center justify-center gap-2">
-          <span>Flowboard ✨ — Le tableau blanc en ligne 100% collaboratif & rigolo !</span>
+          <span>drawing live ✨ — Le tableau blanc en ligne 100% collaboratif & rigolo !</span>
         </p>
       </footer>
     </div>
   );
-}
-
+};
