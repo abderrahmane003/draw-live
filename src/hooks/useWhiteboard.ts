@@ -9,6 +9,7 @@ import {
   orderBy,
   where,
   getDoc,
+  getDocs,
   deleteDoc,
   writeBatch,
   serverTimestamp,
@@ -264,21 +265,26 @@ export function useWhiteboard(
     setUserUndoStack((prev) => prev.slice(0, -1));
   };
 
-  // Clear room canvas
+  // Clear room canvas without deleting database documents
   const clearRoomCanvas = async () => {
     if (!roomId) return;
 
-    const now = Date.now();
+    const now = Date.now() + 50;
     const roomRef = doc(db, 'rooms', roomId);
+
+    // Optimistically update roomInfo clearTimestamp so canvas clears immediately
+    setRoomInfo((prev) =>
+      prev
+        ? { ...prev, clearTimestamp: now, lastModified: now }
+        : { id: roomId, createdAt: now, lastModified: now, clearTimestamp: now }
+    );
+    setUserUndoStack([]);
 
     try {
       await setDoc(roomRef, { clearTimestamp: now, lastModified: now }, { merge: true });
     } catch (err) {
       console.error('Error clearing room in Firestore:', err);
     }
-
-    setStrokes([]);
-    setUserUndoStack([]);
   };
 
   return {
