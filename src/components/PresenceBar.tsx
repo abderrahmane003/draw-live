@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UserPresence } from '../types';
-import { Users, Wifi, WifiOff, Edit2, Plus, Sparkles, Check, LayoutGrid } from 'lucide-react';
+import { Users, Wifi, WifiOff, Edit2, Plus, Sparkles, Check, LayoutGrid, ChevronDown, Pencil, Eye } from 'lucide-react';
 
 interface PresenceBarProps {
   roomId: string;
@@ -27,8 +27,26 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
   onOpenRoomModal,
 }) => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [showDrawersList, setShowDrawersList] = useState(false);
   const [editName, setEditName] = useState(userName);
   const [editColor, setEditColor] = useState(userColor);
+
+  const profileRef = useRef<HTMLDivElement>(null);
+  const drawersRef = useRef<HTMLDivElement>(null);
+
+  // Close popovers on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setIsEditingProfile(false);
+      }
+      if (drawersRef.current && !drawersRef.current.contains(e.target as Node)) {
+        setShowDrawersList(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSaveProfile = () => {
     if (editName.trim()) {
@@ -45,7 +63,7 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
           <LayoutGrid className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
         <div>
-          <h1 className="font-bold text-slate-900 text-sm sm:text-base leading-tight tracking-tight">
+          <h1 className="font-bold text-slate-900 text-sm sm:text-base leading-tight tracking-tight flex items-center gap-2">
             Flowboard
           </h1>
           <div className="flex items-center gap-1.5 mt-0.5">
@@ -57,10 +75,11 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
             </span>
             <button
               onClick={onOpenRoomModal}
-              className="text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors"
-              title="Changer de room"
+              className="flex items-center gap-1 text-slate-500 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors"
+              title="Changer de room ou voir toutes les rooms ouvertes"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3 h-3 text-blue-600" />
+              <span>Rooms ouvertes</span>
             </button>
           </div>
         </div>
@@ -89,30 +108,100 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
         </div>
       </div>
 
-      {/* Right: Active Users Stack & Profile Switcher */}
+      {/* Right: Drawers List & Profile Switcher */}
       <div className="flex items-center gap-3">
-        {/* Avatars Stack */}
-        <div className="flex items-center -space-x-2 overflow-hidden">
-          {activeUsers.slice(0, 4).map((user) => (
-            <div
-              key={user.userId}
-              title={user.userName}
-              className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center font-bold text-[10px] text-white shadow-xs"
-              style={{ backgroundColor: user.userColor }}
-            >
-              {user.userName.charAt(0).toUpperCase()}
+        {/* Drawers / Active Users Dropdown */}
+        <div className="relative" ref={drawersRef}>
+          <button
+            onClick={() => setShowDrawersList(!showDrawersList)}
+            className="flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl transition-all shadow-xs"
+            title="Voir les dessinateurs connectés dans cette room"
+          >
+            <div className="flex items-center -space-x-1.5">
+              {activeUsers.slice(0, 3).map((u) => (
+                <div
+                  key={u.userId}
+                  className="w-5 h-5 rounded-full border border-white flex items-center justify-center font-bold text-[8px] text-white shadow-2xs"
+                  style={{ backgroundColor: u.userColor }}
+                >
+                  {u.userName.charAt(0).toUpperCase()}
+                </div>
+              ))}
             </div>
-          ))}
 
-          {activeUsers.length > 4 && (
-            <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 text-slate-600 font-bold text-[10px] flex items-center justify-center shadow-xs">
-              +{activeUsers.length - 4}
+            <div className="flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-slate-500" />
+              <span className="font-bold text-slate-800 text-xs">
+                {activeUsers.length} {activeUsers.length > 1 ? 'dessinateurs' : 'dessinateur'}
+              </span>
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showDrawersList ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
+
+          {/* List of Drawers Popover */}
+          {showDrawersList && (
+            <div className="absolute right-0 top-full mt-2 p-4 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 z-50 w-72 animate-in fade-in zoom-in-95 duration-100">
+              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100">
+                <div className="flex items-center gap-1.5">
+                  <Pencil className="w-4 h-4 text-blue-600" />
+                  <h3 className="font-bold text-slate-800 text-xs">
+                    Dessinateurs dans la room #{roomId}
+                  </h3>
+                </div>
+                <span className="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {activeUsers.length} en ligne
+                </span>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {activeUsers.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-2">Aucun autre utilisateur connecté.</p>
+                ) : (
+                  activeUsers.map((user) => (
+                    <div
+                      key={user.userId}
+                      className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-xs"
+                          style={{ backgroundColor: user.userColor }}
+                        >
+                          {user.userName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-800 text-xs truncate">
+                            {user.userName}
+                          </p>
+                          <div className="flex items-center gap-1 text-[10px]">
+                            {user.isDrawing ? (
+                              <span className="text-emerald-600 font-semibold flex items-center gap-0.5">
+                                <Pencil className="w-2.5 h-2.5 animate-bounce" /> Dessine...
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 flex items-center gap-0.5">
+                                <Eye className="w-2.5 h-2.5" /> En ligne
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {user.userName === userName && (
+                        <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
+                          Vous
+                        </span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>
 
         {/* Profile Edit Button */}
-        <div className="relative">
+        <div className="relative" ref={profileRef}>
           <button
             onClick={() => {
               setEditName(userName);
@@ -196,4 +285,5 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
     </div>
   );
 };
+
 
