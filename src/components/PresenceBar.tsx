@@ -69,8 +69,8 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
           <Home className="w-5 h-5 stroke-[2.5]" />
         </button>
         <div>
-          <h1 className="font-black text-slate-900 text-sm sm:text-lg leading-tight tracking-wide flex items-center gap-1.5">
-            Flowboard ✨
+          <h1 className="font-black text-slate-900 text-sm sm:text-lg leading-tight tracking-wide flex items-center gap-1.5 capitalize">
+            drawing live 🎨
           </h1>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="text-[11px] sm:text-xs text-slate-900 font-extrabold hidden sm:inline">

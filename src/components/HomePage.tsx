@@ -166,8 +166,8 @@ export function HomePage() {
             <Paintbrush className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="font-extrabold text-slate-900 text-xl sm:text-2xl tracking-wide flex items-center gap-2">
-              Flowboard ✨
+            <h1 className="font-extrabold text-slate-900 text-xl sm:text-2xl tracking-wide flex items-center gap-2 capitalize">
+              drawing live 🎨
             </h1>
             <p className="text-xs font-bold text-slate-800">
               Le tableau blanc rigolo & magique !
