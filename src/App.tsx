@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useParams, useNavigate, Navigate } from 'react-router-dom';
+import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useWhiteboard } from './hooks/useWhiteboard';
 import { Toolbar } from './components/Toolbar';
 import { PresenceBar } from './components/PresenceBar';
 import { WhiteboardCanvas } from './components/WhiteboardCanvas';
 import { RoomSelectorModal } from './components/RoomSelectorModal';
+import { ClearConfirmModal } from './components/ClearConfirmModal';
+import { HomePage } from './components/HomePage';
 import { Toast } from './components/Toast';
 import { StrokeType } from './types';
 import { generateRandomRoomId } from './lib/utils';
@@ -17,7 +19,7 @@ function WhiteboardRoom() {
 
   const cleanRoomId = (rawRoomId || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '') || generateRandomRoomId();
 
-  const { user, userId, loading: authLoading, userName, userColor, updateProfile } = useAuth();
+  const { userId, loading: authLoading, userName, userColor, updateProfile } = useAuth();
 
   const [activeTool, setActiveTool] = useState<StrokeType>('pen');
   const [currentColor, setCurrentColor] = useState<string>('#0F172A');
@@ -25,6 +27,7 @@ function WhiteboardRoom() {
   const [showGrid, setShowGrid] = useState<boolean>(true);
 
   const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
+  const [isClearModalOpen, setIsClearModalOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Real-time whiteboard hook
@@ -192,10 +195,7 @@ function WhiteboardRoom() {
         canRedo={canRedo}
         onUndo={undoLastStroke}
         onRedo={redoLastStroke}
-        onClear={() => {
-          clearRoomCanvas();
-          showToast('Tableau effacé');
-        }}
+        onClear={() => setIsClearModalOpen(true)}
         onDownload={handleDownloadPNG}
         onCopyLink={handleCopyLink}
         showGrid={showGrid}
@@ -225,23 +225,28 @@ function WhiteboardRoom() {
         onSelectRoom={handleRoomSelect}
       />
 
+      {/* Clear Canvas Warning Modal */}
+      <ClearConfirmModal
+        isOpen={isClearModalOpen}
+        onClose={() => setIsClearModalOpen(false)}
+        onConfirm={() => {
+          clearRoomCanvas();
+          showToast('Tout le tableau a été effacé');
+        }}
+      />
+
       {/* Action Feedback Toast */}
       <Toast message={toastMessage} />
     </div>
   );
 }
 
-function HomeRedirect() {
-  const newRoomId = generateRandomRoomId();
-  return <Navigate to={`/room/${newRoomId}`} replace />;
-}
-
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<HomeRedirect />} />
+      <Route path="/" element={<HomePage />} />
       <Route path="/room/:roomId" element={<WhiteboardRoom />} />
-      <Route path="*" element={<HomeRedirect />} />
+      <Route path="*" element={<HomePage />} />
     </Routes>
   );
 }

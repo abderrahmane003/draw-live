@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserPresence } from '../types';
-import { Users, Wifi, WifiOff, Edit2, Plus, Sparkles, Check, LayoutGrid, ChevronDown, Pencil, Eye } from 'lucide-react';
+import { Users, Wifi, WifiOff, Edit2, Plus, Sparkles, Check, LayoutGrid, ChevronDown, Pencil, Eye, Home } from 'lucide-react';
 
 interface PresenceBarProps {
   roomId: string;
@@ -26,6 +27,7 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
   onUpdateProfile,
   onOpenRoomModal,
 }) => {
+  const navigate = useNavigate();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [showDrawersList, setShowDrawersList] = useState(false);
   const [editName, setEditName] = useState(userName);
@@ -59,12 +61,23 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
     <div className="toolbar-blur border-b border-slate-200 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 text-xs z-30 select-none">
       {/* Left: Brand Logo & Room Badge */}
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200/60 shrink-0">
+        <button
+          onClick={() => navigate('/')}
+          className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200/60 shrink-0 transition-all active:scale-95 cursor-pointer"
+          title="Retour à la liste de toutes les rooms"
+        >
           <LayoutGrid className="w-5 h-5 sm:w-6 sm:h-6" />
-        </div>
+        </button>
         <div>
           <h1 className="font-bold text-slate-900 text-sm sm:text-base leading-tight tracking-tight flex items-center gap-2">
             Flowboard
+            <button
+              onClick={() => navigate('/')}
+              className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-colors"
+              title="Accueil - Liste des rooms"
+            >
+              <Home className="w-4 h-4" />
+            </button>
           </h1>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="text-[10px] sm:text-xs text-slate-500 font-semibold uppercase tracking-wider">

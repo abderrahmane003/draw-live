@@ -28,8 +28,9 @@ export function useAuth() {
         try {
           const cred = await signInAnonymously(auth);
           setUser(cred.user);
-        } catch (err) {
-          console.error('Anonymous auth failed:', err);
+        } catch (_err) {
+          // Anonymous auth is restricted in this project configuration; fallbackUserId is used instead.
+          setUser(null);
         }
       }
       setLoading(false);

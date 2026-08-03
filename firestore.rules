@@ -5,11 +5,7 @@ service cloud.firestore {
     match /rooms/{roomId} {
       allow read, write: if true;
 
-      match /strokes/{strokeId} {
-        allow read, write: if true;
-      }
-
-      match /presence/{presenceId} {
+      match /{allPaths=**} {
         allow read, write: if true;
       }
     }
