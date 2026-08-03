@@ -90,40 +90,40 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 toolbar-blur border-b border-slate-200/80 px-4 sm:px-6 py-2 shadow-xs flex items-center justify-between gap-3 overflow-x-auto">
+    <header className="sticky top-0 z-40 bg-amber-200 border-b-4 border-slate-900 px-4 sm:px-6 py-2.5 shadow-md flex items-center justify-between gap-3 overflow-x-auto font-fun">
       {/* Left Group: Tools (Pencil, Eraser, Color) */}
       <div className="flex items-center gap-2">
-        <div className="flex bg-white/90 border border-slate-200 rounded-2xl p-1 shadow-xs gap-1">
+        <div className="flex bg-white border-3 border-slate-900 rounded-2xl p-1 cartoon-shadow gap-1">
           {/* Pencil Tool */}
           <button
             onClick={() => setActiveTool('pen')}
             title="Crayon (Dessin)"
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-black text-xs sm:text-sm transition-all cartoon-btn border-2 ${
               activeTool === 'pen'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-200 font-semibold'
-                : 'text-slate-600 hover:bg-slate-50'
+                ? 'bg-pink-500 text-white border-slate-900 shadow-xs'
+                : 'text-slate-800 border-transparent hover:bg-amber-50'
             }`}
           >
-            <Pencil className="w-4 h-4" />
-            <span className="hidden sm:inline">Crayon</span>
+            <Pencil className="w-4 h-4 stroke-[2.5]" />
+            <span className="hidden sm:inline">Crayon ✏️</span>
           </button>
 
           {/* Eraser Tool */}
           <button
             onClick={() => setActiveTool('eraser')}
             title="Gomme (Effacer des traits)"
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-black text-xs sm:text-sm transition-all cartoon-btn border-2 ${
               activeTool === 'eraser'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-200 font-semibold'
-                : 'text-slate-600 hover:bg-slate-50'
+                ? 'bg-sky-400 text-slate-900 border-slate-900 shadow-xs'
+                : 'text-slate-800 border-transparent hover:bg-amber-50'
             }`}
           >
-            <Eraser className="w-4 h-4" />
-            <span className="hidden sm:inline">Gomme</span>
+            <Eraser className="w-4 h-4 stroke-[2.5]" />
+            <span className="hidden sm:inline">Gomme 🧹</span>
           </button>
         </div>
 
-        <div className="h-7 w-px bg-slate-200 my-auto" />
+        <div className="h-8 w-1 bg-slate-900 rounded-full my-auto opacity-30" />
 
         {/* Color Picker Swatch */}
         <div className="relative" ref={colorPickerRef}>
@@ -131,28 +131,28 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             onClick={() => setShowColorPicker(!showColorPicker)}
             disabled={activeTool === 'eraser'}
             title="Choisir la couleur"
-            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-2xl border bg-white text-sm font-medium transition-all shadow-xs ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-2xl border-3 border-slate-900 bg-white text-sm font-black cartoon-shadow cartoon-btn ${
               activeTool === 'eraser'
-                ? 'opacity-40 cursor-not-allowed border-slate-200'
-                : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                ? 'opacity-40 cursor-not-allowed'
+                : 'hover:bg-pink-50'
             }`}
           >
             <span
-              className="w-5 h-5 rounded-full border-2 border-white ring-2 ring-slate-900/10 shadow-xs inline-block"
+              className="w-5 h-5 rounded-full border-2 border-slate-900 shadow-xs inline-block"
               style={{ backgroundColor: currentColor }}
             />
-            <Palette className="w-4 h-4 text-slate-500 hidden sm:inline" />
+            <Palette className="w-4 h-4 text-slate-900 hidden sm:inline stroke-[2.5]" />
           </button>
 
           {/* Color Palette Popover */}
           {showColorPicker && activeTool !== 'eraser' && (
-            <div className="absolute top-full left-0 mt-2 p-3.5 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 z-50 w-60 animate-in fade-in zoom-in-95 duration-100">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
-                Palette de couleurs
+            <div className="absolute top-full left-0 mt-3 p-4 bg-white rounded-3xl cartoon-shadow-lg border-3 border-slate-900 z-50 w-64 animate-in fade-in zoom-in-95 duration-100">
+              <p className="text-xs font-black text-slate-900 uppercase tracking-wider mb-3">
+                Couleurs Magiques 🎨
               </p>
 
               {/* Presets Grid */}
-              <div className="grid grid-cols-5 gap-2 mb-3">
+              <div className="grid grid-cols-5 gap-2.5 mb-3">
                 {PRESET_COLORS.map((c) => (
                   <button
                     key={c}
@@ -160,28 +160,28 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                       setCurrentColor(c);
                       setShowColorPicker(false);
                     }}
-                    className={`w-8 h-8 rounded-full border-2 border-white transition-transform hover:scale-110 flex items-center justify-center shadow-xs ${
+                    className={`w-9 h-9 rounded-2xl border-2 border-slate-900 transition-transform hover:scale-110 flex items-center justify-center shadow-xs ${
                       currentColor.toLowerCase() === c.toLowerCase()
-                        ? 'ring-2 ring-blue-600 ring-offset-2 scale-105'
+                        ? 'ring-4 ring-pink-400 scale-105'
                         : ''
                     }`}
                     style={{ backgroundColor: c }}
                   >
                     {currentColor.toLowerCase() === c.toLowerCase() && (
-                      <Check className="w-4 h-4 text-white drop-shadow-xs" />
+                      <Check className="w-5 h-5 text-white drop-shadow-md stroke-[3]" />
                     )}
                   </button>
                 ))}
               </div>
 
               {/* Custom Color Input */}
-              <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
-                <span className="text-xs text-slate-600 font-semibold">Couleur libre</span>
+              <div className="pt-3 border-t-2 border-slate-900 flex items-center justify-between gap-2">
+                <span className="text-xs text-slate-900 font-extrabold">Couleur personnalisée</span>
                 <input
                   type="color"
                   value={currentColor}
                   onChange={(e) => setCurrentColor(e.target.value)}
-                  className="w-8 h-8 rounded-xl cursor-pointer border border-slate-200 p-0 overflow-hidden shadow-xs"
+                  className="w-9 h-9 rounded-2xl cursor-pointer border-2 border-slate-900 p-0 overflow-hidden shadow-xs"
                 />
               </div>
             </div>
@@ -189,23 +189,23 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </div>
 
         {/* Brush Size Picker */}
-        <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-2xl shadow-xs">
+        <div className="flex items-center gap-1 bg-white border-3 border-slate-900 p-1 rounded-2xl cartoon-shadow">
           {PRESET_SIZES.map((sz) => (
             <button
               key={sz}
               onClick={() => setBrushSize(sz)}
               title={`Taille ${sz}px`}
-              className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all ${
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all cartoon-btn font-extrabold ${
                 brushSize === sz
-                  ? 'bg-blue-600 text-white shadow-xs font-bold'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                  ? 'bg-yellow-400 text-slate-900 border-2 border-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:bg-amber-50'
               }`}
             >
               <span
-                className="rounded-full bg-current inline-block"
+                className="rounded-full bg-slate-900 inline-block"
                 style={{
-                  width: `${Math.max(4, Math.min(14, sz))}px`,
-                  height: `${Math.max(4, Math.min(14, sz))}px`,
+                  width: `${Math.max(5, Math.min(16, sz))}px`,
+                  height: `${Math.max(5, Math.min(16, sz))}px`,
                 }}
               />
             </button>
@@ -214,108 +214,80 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       </div>
 
       {/* Middle Group: History Actions (Undo, Redo, Grid) */}
-      <div className="flex bg-white/90 border border-slate-200 rounded-2xl p-1 shadow-xs gap-1">
+      <div className="flex bg-white border-3 border-slate-900 rounded-2xl p-1 cartoon-shadow gap-1">
         <button
           onClick={onUndo}
           disabled={!canUndo}
           title="Annuler (Ctrl+Z)"
-          className={`p-2 rounded-xl text-slate-600 transition-all ${
+          className={`p-2 rounded-xl text-slate-900 transition-all cartoon-btn ${
             canUndo
-              ? 'hover:bg-slate-100 text-slate-800'
+              ? 'hover:bg-amber-100 font-bold'
               : 'opacity-30 cursor-not-allowed'
           }`}
         >
-          <Undo2 className="w-4 h-4" />
+          <Undo2 className="w-4 h-4 stroke-[2.5]" />
         </button>
 
         <button
           onClick={onRedo}
           disabled={!canRedo}
           title="Refaire (Ctrl+Y)"
-          className={`p-2 rounded-xl text-slate-600 transition-all ${
+          className={`p-2 rounded-xl text-slate-900 transition-all cartoon-btn ${
             canRedo
-              ? 'hover:bg-slate-100 text-slate-800'
+              ? 'hover:bg-amber-100 font-bold'
               : 'opacity-30 cursor-not-allowed'
           }`}
         >
-          <Redo2 className="w-4 h-4" />
+          <Redo2 className="w-4 h-4 stroke-[2.5]" />
         </button>
 
-        <div className="h-6 w-px bg-slate-200 my-auto" />
+        <div className="h-6 w-0.5 bg-slate-900 my-auto opacity-30" />
 
         <button
           onClick={() => setShowGrid(!showGrid)}
-          title={showGrid ? 'Masquer la grille' : 'Afficher la grille'}
-          className={`p-2 rounded-xl transition-all ${
+          title={showGrid ? 'Masquer le quadrillage' : 'Afficher le quadrillage'}
+          className={`p-2 rounded-xl transition-all cartoon-btn ${
             showGrid
-              ? 'bg-blue-50 text-blue-600 font-bold'
-              : 'text-slate-500 hover:bg-slate-50'
+              ? 'bg-yellow-300 text-slate-900 border-2 border-slate-900 font-black'
+              : 'text-slate-700 hover:bg-amber-100'
           }`}
         >
-          <Grid className="w-4 h-4" />
+          <Grid className="w-4 h-4 stroke-[2.5]" />
         </button>
       </div>
 
       {/* Right Group: Clear, Download, Share */}
       <div className="flex items-center gap-2">
-        {/* Clear Button */}
+        {/* Clear Button with Warning Popup */}
         <div className="relative">
           <button
-            onClick={() => setShowClearConfirm(true)}
-            title="Effacer tout le tableau"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-red-600 hover:bg-red-50 font-medium text-xs sm:text-sm transition-all"
+            onClick={onClear}
+            title="Effacer tout le tableau blanc (Avertissement)"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-red-500 hover:bg-red-400 text-white font-black text-xs sm:text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn"
           >
-            <Trash2 className="w-4 h-4" />
-            <span className="hidden md:inline">Effacer</span>
+            <Trash2 className="w-4 h-4 stroke-[2.5]" />
+            <span className="hidden md:inline">Effacer Tout</span>
           </button>
-
-          {showClearConfirm && (
-            <div className="absolute right-0 top-full mt-2 p-4 bg-white rounded-2xl shadow-2xl border border-red-100 z-50 w-64 animate-in fade-in zoom-in-95">
-              <p className="text-xs font-bold text-slate-800 mb-1">
-                Effacer tout le tableau ?
-              </p>
-              <p className="text-xs text-slate-500 mb-3 leading-relaxed">
-                Cette action effacera tous les dessins pour tous les participants.
-              </p>
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  onClick={() => setShowClearConfirm(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={() => {
-                    onClear();
-                    setShowClearConfirm(false);
-                  }}
-                  className="px-3.5 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-xl hover:bg-red-700 shadow-md shadow-red-200"
-                >
-                  Confirmer
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Download PNG Button */}
         <button
           onClick={onDownload}
-          title="Télécharger en PNG"
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold text-xs sm:text-sm transition-all shadow-xs"
+          title="Télécharger ton dessin en PNG"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border-3 border-slate-900 bg-emerald-400 hover:bg-emerald-300 text-slate-900 font-black text-xs sm:text-sm cartoon-shadow cartoon-btn"
         >
-          <Download className="w-4 h-4 text-slate-500" />
-          <span className="hidden md:inline">PNG</span>
+          <Download className="w-4 h-4 stroke-[2.5]" />
+          <span className="hidden md:inline">Image PNG</span>
         </button>
 
         {/* Share Button */}
         <button
           onClick={handleCopy}
-          title="Copier le lien"
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm transition-all shadow-md shadow-slate-300 active:scale-95"
+          title="Copier le lien pour inviter des amis"
+          className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-purple-500 hover:bg-purple-400 text-white font-black text-xs sm:text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn"
         >
-          {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
-          <span>{copied ? 'Copié !' : 'Partager'}</span>
+          {copied ? <Check className="w-4 h-4 text-yellow-300 stroke-[3]" /> : <Share2 className="w-4 h-4 stroke-[2.5]" />}
+          <span>{copied ? 'Lien Copié !' : 'Partager 💌'}</span>
         </button>
       </div>
     </header>

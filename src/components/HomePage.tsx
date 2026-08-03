@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, orderBy, limit, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { RoomInfo } from '../types';
 import { generateRandomRoomId } from '../lib/utils';
@@ -10,19 +10,32 @@ import {
   Globe,
   Clock,
   Users,
-  LayoutGrid,
   Plus,
   Pencil,
-  Layers,
   Search,
   Check,
   RefreshCw,
+  Palette,
+  Paintbrush,
+  Star,
+  Smile,
+  Wand2,
+  Gamepad2,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface RoomWithPresence extends RoomInfo {
   activeUsersCount: number;
 }
+
+const CARD_COLORS = [
+  'bg-pink-100 border-pink-400 text-pink-900',
+  'bg-amber-100 border-amber-400 text-amber-900',
+  'bg-emerald-100 border-emerald-400 text-emerald-900',
+  'bg-sky-100 border-sky-400 text-sky-900',
+  'bg-purple-100 border-purple-400 text-purple-900',
+  'bg-orange-100 border-orange-400 text-orange-900',
+];
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -56,7 +69,6 @@ export function HomePage() {
           });
         });
 
-        // For each room, listen to active presence
         if (fetchedRooms.length === 0) {
           setRooms([]);
           setLoading(false);
@@ -64,7 +76,6 @@ export function HomePage() {
         }
 
         const roomPresenceMap: Record<string, number> = {};
-        let activeListeners = 0;
 
         fetchedRooms.forEach((room) => {
           const presenceRef = collection(db, 'rooms', room.id, 'presence');
@@ -136,19 +147,30 @@ export function HomePage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
-      {/* Top Navbar */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30 px-4 sm:px-8 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[#FFFBEB] text-slate-900 flex flex-col font-fun selection:bg-pink-400 selection:text-white relative overflow-x-hidden">
+      {/* Playful Floating Doodles in Background */}
+      <div className="absolute top-12 left-6 text-pink-300 opacity-60 pointer-events-none transform -rotate-12 animate-pulse">
+        <Sparkles className="w-16 h-16" />
+      </div>
+      <div className="absolute top-36 right-10 text-amber-300 opacity-60 pointer-events-none transform rotate-12">
+        <Star className="w-20 h-20" />
+      </div>
+      <div className="absolute bottom-20 left-12 text-sky-300 opacity-50 pointer-events-none transform rotate-45">
+        <Palette className="w-24 h-24" />
+      </div>
+
+      {/* Fun Playful Navbar */}
+      <header className="border-b-4 border-slate-900 bg-amber-300 sticky top-0 z-30 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20">
-            <LayoutGrid className="w-5 h-5" />
+          <div className="w-12 h-12 rounded-2xl bg-pink-500 border-3 border-slate-900 flex items-center justify-center text-white font-extrabold cartoon-shadow transform -rotate-3">
+            <Paintbrush className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="font-extrabold text-white text-lg tracking-tight leading-none flex items-center gap-2">
-              Flowboard
+            <h1 className="font-extrabold text-slate-900 text-xl sm:text-2xl tracking-wide flex items-center gap-2">
+              Flowboard ✨
             </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              Tableaux blancs collaboratifs en ligne
+            <p className="text-xs font-bold text-slate-800">
+              Le tableau blanc rigolo & magique !
             </p>
           </div>
         </div>
@@ -156,20 +178,20 @@ export function HomePage() {
         {/* User Profile Badge */}
         <div className="flex items-center gap-3">
           {isEditingName ? (
-            <div className="flex items-center gap-1.5 bg-slate-800 p-1 rounded-xl border border-slate-700">
+            <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border-3 border-slate-900 cartoon-shadow">
               <input
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="bg-slate-900 text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 font-medium"
+                className="bg-amber-50 text-slate-900 text-sm font-bold px-3 py-1 rounded-xl border-2 border-slate-900 focus:outline-none focus:ring-2 focus:ring-pink-500"
                 maxLength={20}
                 autoFocus
               />
               <button
                 onClick={handleSaveProfile}
-                className="p-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+                className="p-1.5 bg-emerald-400 hover:bg-emerald-300 text-slate-900 font-bold rounded-xl border-2 border-slate-900 cartoon-btn"
               >
-                <Check className="w-3.5 h-3.5" />
+                <Check className="w-4 h-4" />
               </button>
             </div>
           ) : (
@@ -178,51 +200,47 @@ export function HomePage() {
                 setEditName(userName);
                 setIsEditingName(true);
               }}
-              className="flex items-center gap-2.5 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 px-3.5 py-1.5 rounded-xl transition-all text-xs font-semibold text-slate-200 shadow-sm"
-              title="Modifier votre nom d'utilisateur"
+              className="flex items-center gap-2.5 bg-white hover:bg-pink-50 border-3 border-slate-900 px-4 py-2 rounded-2xl cartoon-shadow cartoon-btn font-bold text-xs sm:text-sm text-slate-900"
+              title="Modifier ton pseudo rigolo"
             >
               <div
-                className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] text-white shrink-0"
+                className="w-7 h-7 rounded-full border-2 border-slate-900 flex items-center justify-center font-extrabold text-xs text-white shrink-0 shadow-sm"
                 style={{ backgroundColor: userColor }}
               >
                 {userName.charAt(0).toUpperCase()}
               </div>
-              <span className="truncate max-w-[120px]">{userName}</span>
-              <Pencil className="w-3 h-3 text-slate-400" />
+              <span className="truncate max-w-[130px]">{userName}</span>
+              <Pencil className="w-3.5 h-3.5 text-slate-600" />
             </button>
           )}
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-8 py-8 sm:py-12 space-y-10">
-        {/* Hero Banner Section */}
-        <div className="relative rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-blue-950/40 border border-slate-800 p-6 sm:p-10 overflow-hidden shadow-2xl">
-          {/* Background Ambient Glow */}
-          <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-1/3 -mb-12 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-8 py-8 sm:py-12 space-y-10 z-10">
+        {/* Playful Hero Banner Section */}
+        <div className="relative rounded-3xl bg-gradient-to-r from-sky-200 via-indigo-100 to-pink-200 border-4 border-slate-900 p-6 sm:p-10 overflow-hidden cartoon-shadow-lg">
           <div className="relative z-10 max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Espace de dessin collaboratif sans limites</span>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-300 border-2 border-slate-900 text-slate-900 text-xs font-extrabold shadow-xs">
+              <Smile className="w-4 h-4 text-pink-600" />
+              <span>Dessine en direct avec tes copains !</span>
             </div>
 
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">
-              Créez, partagez & dessinez en temps réel.
+            <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+              Bienvenue dans ton Studio de Dessin ! 🎨🎨
             </h2>
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-              Toutes vos rooms sont conservées en ligne et synchronisées instantanément entre tous les participants. Rejoignez une room existante ou démarrez un nouveau tableau en un clic.
+            <p className="text-sm sm:text-base font-bold text-slate-700 leading-relaxed">
+              Toutes les rooms restent enregistrées. Dès que tu dessines, tes amis voient tes traits apparaître en temps réel sur leur écran !
             </p>
 
             {/* Actions Grid */}
-            <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <button
                 onClick={handleCreateNewRoom}
-                className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm transition-all shadow-xl shadow-blue-600/25 flex items-center justify-center gap-2.5 active:scale-98"
+                className="px-6 py-4 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-extrabold text-base transition-all border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-3"
               >
-                <Plus className="w-5 h-5" />
-                <span>Nouveau Tableau Blanc</span>
+                <Plus className="w-6 h-6 stroke-[3]" />
+                <span>Nouveau Tableau Blanc 🚀</span>
               </button>
 
               <form onSubmit={handleJoinByCode} className="flex-1 flex items-center gap-2">
@@ -230,17 +248,17 @@ export function HomePage() {
                   type="text"
                   value={inputRoomCode}
                   onChange={(e) => setInputRoomCode(e.target.value)}
-                  placeholder="Code de room (ex: DESIGN123)..."
-                  className="flex-1 bg-slate-900/90 border border-slate-700/80 focus:border-blue-500 text-white text-xs sm:text-sm px-4 py-3 rounded-2xl font-mono uppercase font-bold tracking-wider placeholder:normal-case placeholder:font-normal placeholder:text-slate-500 focus:outline-none"
+                  placeholder="Code de room (ex: DESSIN1)..."
+                  className="flex-1 bg-white border-3 border-slate-900 focus:ring-4 focus:ring-yellow-300 text-slate-900 text-xs sm:text-sm px-4 py-3.5 rounded-2xl font-mono uppercase font-black tracking-wider placeholder:normal-case placeholder:font-bold placeholder:text-slate-400 focus:outline-none shadow-inner"
                   maxLength={20}
                 />
                 <button
                   type="submit"
                   disabled={!inputRoomCode.trim()}
-                  className="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 shrink-0 border border-slate-700"
+                  className="px-5 py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 disabled:opacity-40 text-slate-900 font-extrabold text-xs sm:text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-2 shrink-0"
                 >
-                  <span>Rejoindre</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>Entrer</span>
+                  <ArrowRight className="w-5 h-5 stroke-[3]" />
                 </button>
               </form>
             </div>
@@ -249,26 +267,28 @@ export function HomePage() {
 
         {/* Rooms Listing Section */}
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
-            <div className="flex items-center gap-2.5">
-              <Globe className="w-5 h-5 text-blue-400" />
-              <h3 className="font-extrabold text-white text-xl tracking-tight">
-                Tableaux blancs enregistrés
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-4 border-slate-900 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-yellow-300 border-2 border-slate-900 flex items-center justify-center text-slate-900 font-extrabold cartoon-shadow">
+                <Globe className="w-5 h-5 text-slate-900" />
+              </div>
+              <h3 className="font-black text-slate-900 text-2xl tracking-wide">
+                Rooms Ouvertes & Sauvegardées 🎨
               </h3>
-              <span className="bg-slate-800 text-slate-300 font-bold text-xs px-2.5 py-0.5 rounded-full border border-slate-700">
+              <span className="bg-pink-400 text-white font-black text-sm px-3 py-0.5 rounded-full border-2 border-slate-900 cartoon-shadow">
                 {filteredRooms.length}
               </span>
             </div>
 
             {/* Search filter */}
-            <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="relative w-full sm:w-72">
+              <Search className="w-5 h-5 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 stroke-[2.5]" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Rechercher une room..."
-                className="w-full bg-slate-900/90 border border-slate-800 focus:border-blue-500 text-slate-200 text-xs pl-9 pr-3 py-2 rounded-xl focus:outline-none"
+                placeholder="Chercher un tableau..."
+                className="w-full bg-white border-3 border-slate-900 text-slate-900 font-bold text-xs pl-10 pr-4 py-2.5 rounded-2xl focus:outline-none focus:ring-4 focus:ring-pink-300 shadow-xs"
               />
             </div>
           </div>
@@ -276,95 +296,101 @@ export function HomePage() {
           {/* Rooms Grid */}
           {loading ? (
             <div className="py-16 text-center space-y-3">
-              <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mx-auto" />
-              <p className="text-xs font-semibold text-slate-400">
-                Chargement des tableaux en ligne...
+              <RefreshCw className="w-10 h-10 text-pink-500 animate-spin mx-auto stroke-[3]" />
+              <p className="text-sm font-black text-slate-600">
+                Chargement des supers tableaux... 🎨
               </p>
             </div>
           ) : filteredRooms.length === 0 ? (
-            <div className="py-16 text-center bg-slate-900/40 rounded-3xl border border-dashed border-slate-800 p-8 space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
-                <Layers className="w-7 h-7" />
+            <div className="py-16 text-center bg-white rounded-3xl border-4 border-dashed border-slate-900 p-8 space-y-4 cartoon-shadow">
+              <div className="w-16 h-16 rounded-3xl bg-amber-200 border-3 border-slate-900 text-slate-900 flex items-center justify-center mx-auto cartoon-shadow">
+                <Wand2 className="w-8 h-8" />
               </div>
               <div className="space-y-1">
-                <h4 className="font-bold text-white text-base">Aucun tableau blanc trouvé</h4>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                <h4 className="font-black text-slate-900 text-xl">Aucune room trouvée !</h4>
+                <p className="text-xs font-bold text-slate-600 max-w-sm mx-auto">
                   {searchQuery
-                    ? 'Aucune room ne correspond à votre recherche.'
-                    : 'Créez le tout premier tableau blanc pour démarrer la collaboration !'}
+                    ? 'Aucun tableau ne correspond à ce nom.'
+                    : 'Crée la toute première room et invite tes amis à dessiner !'}
                 </p>
               </div>
               <button
                 onClick={handleCreateNewRoom}
-                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs inline-flex items-center gap-2"
+                className="px-6 py-3 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-black text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn inline-flex items-center gap-2"
               >
-                <Plus className="w-4 h-4" />
-                <span>Créer une room maintenant</span>
+                <Plus className="w-5 h-5 stroke-[3]" />
+                <span>Créer une room rigolote</span>
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {filteredRooms.map((room) => (
-                <div
-                  key={room.id}
-                  onClick={() => navigate(`/room/${room.id}`)}
-                  className="group bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-2xl p-5 transition-all duration-200 cursor-pointer shadow-lg hover:shadow-xl hover:shadow-blue-500/5 flex flex-col justify-between space-y-4 relative overflow-hidden"
-                >
-                  {/* Top Header of Card */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-lg">
-                          #{room.id}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredRooms.map((room, idx) => {
+                const colorStyle = CARD_COLORS[idx % CARD_COLORS.length];
+                return (
+                  <div
+                    key={room.id}
+                    onClick={() => navigate(`/room/${room.id}`)}
+                    className={`group bg-white hover:bg-amber-50 border-3 border-slate-900 rounded-3xl p-5 transition-all duration-150 cursor-pointer cartoon-shadow cartoon-btn flex flex-col justify-between space-y-4 relative overflow-hidden`}
+                  >
+                    {/* Top Header of Card */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-mono font-black text-xs px-2.5 py-1 rounded-xl border-2 border-slate-900 shadow-2xs ${colorStyle}`}>
+                            #{room.id}
+                          </span>
+                        </div>
+                        <h4 className="font-black text-slate-900 text-base truncate pt-1 group-hover:text-pink-600 transition-colors">
+                          {room.name}
+                        </h4>
+                      </div>
+
+                      {/* Online Drawer Badge */}
+                      <div
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border-2 border-slate-900 shrink-0 ${
+                          room.activeUsersCount > 0
+                            ? 'bg-emerald-300 text-slate-900'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        <span
+                          className={`w-2.5 h-2.5 rounded-full border border-slate-900 ${
+                            room.activeUsersCount > 0 ? 'bg-emerald-600 animate-ping' : 'bg-slate-400'
+                          }`}
+                        />
+                        <Users className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>
+                          {room.activeUsersCount} {room.activeUsersCount === 1 ? 'dessinateur' : 'dessinateurs'}
                         </span>
                       </div>
-                      <h4 className="font-bold text-slate-100 text-sm truncate group-hover:text-blue-400 transition-colors pt-1">
-                        {room.name}
-                      </h4>
                     </div>
 
-                    {/* Online Drawer Badge */}
-                    <div
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border shrink-0 ${
-                        room.activeUsersCount > 0
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                          : 'bg-slate-800 border-slate-700 text-slate-400'
-                      }`}
-                    >
-                      <span
-                        className={`w-2 h-2 rounded-full ${
-                          room.activeUsersCount > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'
-                        }`}
-                      />
-                      <Users className="w-3.5 h-3.5" />
-                      <span>
-                        {room.activeUsersCount} {room.activeUsersCount === 1 ? 'personne' : 'personnes'}
+                    {/* Card Bottom Metadata */}
+                    <div className="pt-3 border-t-2 border-slate-900 flex items-center justify-between text-xs font-bold text-slate-700">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-slate-500" />
+                        <span>{formatTimeAgo(room.lastModified)}</span>
+                      </div>
+
+                      <span className="font-black text-pink-600 bg-pink-100 px-3 py-1 rounded-xl border-2 border-slate-900 inline-flex items-center gap-1 text-xs group-hover:bg-pink-500 group-hover:text-white transition-all">
+                        Dessiner <ArrowRight className="w-4 h-4 stroke-[3]" />
                       </span>
                     </div>
                   </div>
-
-                  {/* Card Bottom Metadata */}
-                  <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Dernier dessin : {formatTimeAgo(room.lastModified)}</span>
-                    </div>
-
-                    <span className="font-bold text-blue-400 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 text-xs">
-                      Ouvrir <ArrowRight className="w-3.5 h-3.5" />
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">
-        <p>Flowboard — Tableau Blanc Collaboratif Multi-Utilisateurs en Temps Réel</p>
+      {/* Playful Footer */}
+      <footer className="border-t-4 border-slate-900 bg-amber-300 py-6 text-center text-xs font-black text-slate-900">
+        <p className="flex items-center justify-center gap-2">
+          <span>Flowboard ✨ — Le tableau blanc en ligne 100% collaboratif & rigolo !</span>
+        </p>
       </footer>
     </div>
   );
 }
+

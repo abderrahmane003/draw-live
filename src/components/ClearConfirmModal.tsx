@@ -15,49 +15,49 @@ export const ClearConfirmModal: React.FC<ClearConfirmModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl shadow-2xl border border-red-100 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150 font-fun">
+      <div className="bg-white rounded-3xl cartoon-shadow-lg border-4 border-slate-900 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="bg-red-50 text-red-900 p-5 flex items-center justify-between border-b border-red-100">
+        <div className="bg-red-400 text-slate-900 p-5 flex items-center justify-between border-b-4 border-slate-900">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-red-600 text-white flex items-center justify-center font-bold shadow-md shadow-red-200">
-              <AlertTriangle className="w-5 h-5" />
+            <div className="w-11 h-11 rounded-2xl bg-white text-red-600 border-3 border-slate-900 flex items-center justify-center font-black shadow-xs">
+              <AlertTriangle className="w-6 h-6 stroke-[3]" />
             </div>
             <div>
-              <h3 className="font-extrabold text-base text-red-950">
-                Avertissement : Effacer tout
+              <h3 className="font-black text-lg text-slate-900 leading-tight">
+                Attention ! Effacer Tout ? 🗑️
               </h3>
-              <p className="text-xs text-red-700 font-medium">Action irréversible</p>
+              <p className="text-xs text-slate-900 font-extrabold">Cette action est définitive !</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-red-400 hover:text-red-700 p-1.5 rounded-xl transition-colors hover:bg-red-100/50"
+            className="text-slate-900 hover:bg-red-300 p-1.5 rounded-xl border-2 border-slate-900 transition-all cartoon-btn"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5 stroke-[3]" />
           </button>
         </div>
 
         {/* Content */}
         <div className="p-6 space-y-4">
-          <p className="text-sm text-slate-700 leading-relaxed font-medium">
-            Êtes-vous absolument sûr de vouloir <strong className="text-red-600 font-bold">supprimer tout le contenu</strong> de ce tableau blanc ?
+          <p className="text-sm text-slate-900 leading-relaxed font-extrabold">
+            Es-tu vraiment sûr(e) de vouloir <strong className="text-red-600 font-black">tout supprimer</strong> sur ce tableau blanc ?
           </p>
-          <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-3.5 text-xs space-y-1">
-            <p className="font-bold flex items-center gap-1.5 text-amber-800">
+          <div className="bg-amber-100 border-3 border-slate-900 text-slate-900 rounded-2xl p-4 text-xs space-y-1">
+            <p className="font-black text-slate-900 flex items-center gap-1.5">
               ⚠️ Attention :
             </p>
-            <p className="text-amber-700 leading-normal">
-              Tous les traits dessinés seront effacés pour <strong>tous les participants</strong> actuellement connectés à cette room.
+            <p className="font-bold text-slate-800 leading-normal">
+              Tous les dessins seront effacés instantanément pour <strong>tous les dessinateurs</strong> de cette room.
             </p>
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-slate-50 p-4 border-t border-slate-100 flex items-center justify-end gap-3">
+        <div className="bg-amber-50 p-4 border-t-4 border-slate-900 flex items-center justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition-all shadow-xs"
+            className="px-5 py-2.5 rounded-2xl border-3 border-slate-900 bg-white hover:bg-slate-100 text-slate-900 font-black text-xs cartoon-shadow cartoon-btn"
           >
             Annuler
           </button>
@@ -66,10 +66,10 @@ export const ClearConfirmModal: React.FC<ClearConfirmModalProps> = ({
               onConfirm();
               onClose();
             }}
-            className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-all shadow-md shadow-red-200 flex items-center gap-2"
+            className="px-6 py-2.5 rounded-2xl bg-red-500 hover:bg-red-400 text-white font-black text-xs border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center gap-2"
           >
-            <Trash2 className="w-4 h-4" />
-            <span>Oui, tout effacer</span>
+            <Trash2 className="w-4 h-4 stroke-[3]" />
+            <span>Oui, Tout Effacer !</span>
           </button>
         </div>
       </div>
