@@ -51,10 +51,9 @@ export const HomePage: React.FC = () => {
   // Real-time sync of available rooms
   useEffect(() => {
     const roomsRef = collection(db, 'rooms');
-    const q = query(roomsRef, orderBy('lastModified', 'desc'));
 
     const unsubscribe = onSnapshot(
-      q,
+      roomsRef,
       (snapshot) => {
         const list: RoomSummary[] = [];
         snapshot.forEach((docSnap) => {
@@ -66,6 +65,7 @@ export const HomePage: React.FC = () => {
             activeUsersCount: 0,
           });
         });
+        list.sort((a, b) => b.lastModified - a.lastModified);
         setRooms(list);
         setLoading(false);
       },

@@ -48,18 +48,22 @@ export function useWhiteboard(
           clearTimestamp: 0,
           name: `Tableau #${roomId}`,
         };
-        setDoc(roomRef, newRoom).catch((err) =>
+        setDoc(roomRef, newRoom, { merge: true }).catch((err) =>
           console.error('Error creating room doc:', err)
         );
       }
-    });
+    }).catch((err) => console.error('Error fetching room doc:', err));
 
     // Listen to Room metadata
-    const unsubRoom = onSnapshot(roomRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setRoomInfo(snapshot.data() as RoomInfo);
-      }
-    });
+    const unsubRoom = onSnapshot(
+      roomRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setRoomInfo(snapshot.data() as RoomInfo);
+        }
+      },
+      (err) => console.error('Error listening to room info:', err)
+    );
 
     return () => unsubRoom();
   }, [roomId]);
@@ -69,10 +73,9 @@ export function useWhiteboard(
     if (!roomId) return;
 
     const strokesRef = collection(db, 'rooms', roomId, 'strokes');
-    const q = query(strokesRef, orderBy('timestamp', 'asc'));
 
     const unsubStrokes = onSnapshot(
-      q,
+      strokesRef,
       (snapshot) => {
         setIsConnected(true);
         const strokeList: Stroke[] = [];
@@ -90,6 +93,10 @@ export function useWhiteboard(
             deleted: data.deleted || false,
           });
         });
+
+        // Client-side sort by timestamp ascending
+        strokeList.sort((a, b) => a.timestamp - b.timestamp);
+
         setStrokes(strokeList);
 
         if (userId) {

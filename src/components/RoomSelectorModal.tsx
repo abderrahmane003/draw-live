@@ -41,10 +41,9 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
     if (!isOpen) return;
 
     const roomsRef = collection(db, 'rooms');
-    const q = query(roomsRef, orderBy('lastModified', 'desc'));
 
     const unsub = onSnapshot(
-      q,
+      roomsRef,
       (snapshot) => {
         const list: OpenRoomInfo[] = [];
         snapshot.forEach((docSnap) => {
@@ -55,6 +54,7 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
             lastModified: data.lastModified || data.createdAt || Date.now(),
           });
         });
+        list.sort((a, b) => b.lastModified - a.lastModified);
         setOpenRooms(list);
         setLoadingRooms(false);
       },
