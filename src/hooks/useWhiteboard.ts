@@ -14,6 +14,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import appletConfig from '../../firebase-applet-config.json';
 import { Stroke, StrokeType, UserPresence, RoomInfo, Point } from '../types';
 
 export function useWhiteboard(
@@ -33,10 +34,16 @@ export function useWhiteboard(
 
   const lastPresenceUpdateRef = useRef<number>(0);
 
+  // Diagnostic logging & state
+  const activeListenersCountRef = useRef<number>(0);
+  const sentStrokesCountRef = useRef<number>(0);
+
   // Ensure Room document exists in Firestore
   useEffect(() => {
     if (!roomId) return;
-    console.log(`🚪 [Room] Room ouverte: #${roomId}`);
+    console.log(`🚪 [Room Init] Room ID: #${roomId}`);
+    console.log(`🔥 [Firestore Config] Project ID: ${appletConfig.projectId} | Database ID: ${appletConfig.firestoreDatabaseId || '(default)'}`);
+    console.log(`🔑 [User Context] UID Firebase: ${userId || 'Non connecté'}`);
 
     const roomRef = doc(db, 'rooms', roomId);
     getDoc(roomRef).then((snapshot) => {
@@ -49,27 +56,43 @@ export function useWhiteboard(
           name: `Tableau #${roomId}`,
         };
         setDoc(roomRef, newRoom).catch((err) =>
-          console.error('❌ [Room] Erreur création room doc:', err)
+          console.error('❌ [Firestore Error] Erreur création room doc:', err)
         );
       } else {
-        console.log(`📄 [Document reçu] Room metadata chargée pour #${roomId}`);
+        console.log(`📄 [Firestore Info] Metadata room chargée pour #${roomId}`);
       }
     });
 
     // Listen to Room metadata
-    const unsubRoom = onSnapshot(roomRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setRoomInfo(snapshot.data() as RoomInfo);
-      }
-    });
+    activeListenersCountRef.current += 1;
+    console.log(`🎧 [Listeners System] Listeners actifs: ${activeListenersCountRef.current}`);
 
-    return () => unsubRoom();
-  }, [roomId]);
+    const unsubRoom = onSnapshot(
+      roomRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setRoomInfo(snapshot.data() as RoomInfo);
+        }
+      },
+      (error) => {
+        console.error(`❌ [Firebase Error] Erreur listener room metadata (${doc(db, 'rooms', roomId).path}):`, error);
+      }
+    );
+
+    return () => {
+      activeListenersCountRef.current = Math.max(0, activeListenersCountRef.current - 1);
+      console.log(`🛑 [Listeners System] Unsubscribe Room metadata. Listeners actifs: ${activeListenersCountRef.current}`);
+      unsubRoom();
+    };
+  }, [roomId, userId]);
 
   // Listen to strokes in real-time
   useEffect(() => {
     if (!roomId) return;
-    console.log(`🎧 [Listener créé] Ecouteur de traits activé pour la room #${roomId}`);
+    const strokesPath = `rooms/${roomId}/strokes`;
+    console.log(`🎧 [Listener Init] S'abonne aux traits sur le chemin Firestore: ${strokesPath}`);
+    activeListenersCountRef.current += 1;
+    console.log(`🎧 [Listeners System] Listeners actifs: ${activeListenersCountRef.current}`);
 
     const strokesRef = collection(db, 'rooms', roomId, 'strokes');
     const q = query(strokesRef, orderBy('timestamp', 'asc'));
@@ -78,7 +101,6 @@ export function useWhiteboard(
       q,
       (snapshot) => {
         setIsConnected(true);
-        console.log('📡 [Firestore Sync] Connexion Firestore réussie. Réception d\'une mise à jour temps réel.');
         const strokeList: Stroke[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
@@ -94,7 +116,11 @@ export function useWhiteboard(
             deleted: data.deleted || false,
           });
         });
-        console.log(`📡 [Firestore Sync] Document reçu. Nombre de traits reçus: ${strokeList.length}`);
+
+        console.log(`📡 [Firestore Sync] Update en temps réel reçue !`);
+        console.log(`📊 [Diagnostic] Room ID: ${roomId} | Path: ${strokesPath} | UID: ${userId || 'N/A'}`);
+        console.log(`📊 [Diagnostic] Listeners actifs: ${activeListenersCountRef.current} | Traits reçus: ${strokeList.length} | Traits envoyés (session): ${sentStrokesCountRef.current}`);
+
         setStrokes(strokeList);
 
         if (userId) {
@@ -105,16 +131,18 @@ export function useWhiteboard(
         }
       },
       (error) => {
-        console.error('❌ [Firestore Sync] Erreur de connexion aux traits:', error);
+        console.error(`❌ [Firebase Error] Erreur listener strokes sur ${strokesPath}:`, error);
         setIsConnected(false);
       }
     );
 
     return () => {
-      console.log(`🛑 [Listener détruit] Ecouteur de traits désactivé pour #${roomId}`);
+      activeListenersCountRef.current = Math.max(0, activeListenersCountRef.current - 1);
+      console.log(`🛑 [Listeners System] Unsubscribe Strokes. Listeners actifs: ${activeListenersCountRef.current}`);
       unsubStrokes();
     };
   }, [roomId, userId]);
+
 
   // Listen to presences in real-time
   useEffect(() => {
@@ -240,7 +268,8 @@ export function useWhiteboard(
     });
 
     try {
-      console.log('✍️ [Firestore Write] Trait enregistré dans Firestore:', newStroke.id);
+      sentStrokesCountRef.current += 1;
+      console.log(`✍️ [Firestore Write] Trait #${newStroke.id} envoyé à Firestore (Total envoyés: ${sentStrokesCountRef.current}) | Path: rooms/${roomId}/strokes/${newStroke.id}`);
       await setDoc(strokeRef, newStroke);
       const roomRef = doc(db, 'rooms', roomId);
       setDoc(
@@ -251,9 +280,11 @@ export function useWhiteboard(
           lastModified: timestamp,
         },
         { merge: true }
-      ).catch(() => {});
+      ).catch((err) => {
+        console.error('❌ [Firebase Error] Erreur maj room metadata:', err);
+      });
     } catch (err) {
-      console.error('❌ [Firestore Write] Erreur écriture trait dans Firestore:', err);
+      console.error('❌ [Firebase Error] Erreur écriture trait dans Firestore:', err);
     }
 
     // Clear local redo stack when drawing a new stroke

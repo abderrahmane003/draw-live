@@ -107,7 +107,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-amber-200 border-b-3 sm:border-b-4 border-slate-900 px-2 sm:px-6 py-1.5 sm:py-2.5 shadow-md font-fun">
       {/* Single Horizontal Row for all tools */}
-      <div className="flex items-center justify-between gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar whitespace-nowrap">
+      <div className="flex items-center justify-between gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar whitespace-nowrap pb-1 sm:pb-0">
         {/* Left Group: Drawing Tools (Pencil, Eraser, Color, Size) */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <div className="flex bg-white border-2 sm:border-3 border-slate-900 rounded-xl sm:rounded-2xl p-0.5 sm:p-1 cartoon-shadow gap-0.5 sm:gap-1">
@@ -146,7 +146,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               type="button"
               onClick={handleColorButtonClick}
               title="Choisir la couleur de dessin"
-              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl border-2 sm:border-3 border-slate-900 bg-white text-xs sm:text-sm font-black cartoon-shadow cartoon-btn hover:bg-pink-50"
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl border-2 sm:border-3 border-slate-900 bg-white text-xs sm:text-sm font-black cartoon-shadow cartoon-btn hover:bg-pink-50 cursor-pointer"
             >
               <span
                 className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-slate-900 shadow-xs inline-block shrink-0"
@@ -160,12 +160,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               <>
                 {/* Backdrop on mobile/desktop to capture outside clicks */}
                 <div
-                  className="fixed inset-0 z-40 bg-black/10"
+                  className="fixed inset-0 z-40 bg-black/20"
                   onClick={() => setShowColorPicker(false)}
-                  onTouchStart={() => setShowColorPicker(false)}
                 />
                 <div
-                  className="fixed top-16 left-4 right-4 sm:absolute sm:top-full sm:left-0 sm:right-auto mt-2 p-3 sm:p-4 bg-white rounded-3xl cartoon-shadow-lg border-3 border-slate-900 z-50 sm:w-72 shadow-2xl animate-in fade-in zoom-in-95 duration-100"
+                  className="absolute top-full left-0 mt-2 w-64 sm:w-72 p-3 sm:p-4 bg-white rounded-3xl cartoon-shadow-lg border-3 border-slate-900 z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-100"
                   onPointerDown={(e) => e.stopPropagation()}
                   onTouchStart={(e) => e.stopPropagation()}
                 >
