@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useWhiteboard } from './hooks/useWhiteboard';
 import { Toolbar } from './components/Toolbar';
@@ -7,19 +8,16 @@ import { WhiteboardCanvas } from './components/WhiteboardCanvas';
 import { RoomSelectorModal } from './components/RoomSelectorModal';
 import { Toast } from './components/Toast';
 import { StrokeType } from './types';
-import { getRoomIdFromUrl, setRoomUrl, generateRandomRoomId } from './lib/utils';
+import { generateRandomRoomId } from './lib/utils';
 import { Loader2 } from 'lucide-react';
 
-export default function App() {
-  const { user, loading: authLoading, userName, userColor, updateProfile } = useAuth();
+function WhiteboardRoom() {
+  const { roomId: rawRoomId } = useParams<{ roomId: string }>();
+  const navigate = useNavigate();
 
-  const [roomId, setRoomId] = useState<string>(() => {
-    const existing = getRoomIdFromUrl();
-    if (existing) return existing;
-    const initial = generateRandomRoomId();
-    setRoomUrl(initial);
-    return initial;
-  });
+  const cleanRoomId = (rawRoomId || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '') || generateRandomRoomId();
+
+  const { user, loading: authLoading, userName, userColor, updateProfile } = useAuth();
 
   const [activeTool, setActiveTool] = useState<StrokeType>('pen');
   const [currentColor, setCurrentColor] = useState<string>('#0F172A');
@@ -28,18 +26,6 @@ export default function App() {
 
   const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Synchronize browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = () => {
-      const id = getRoomIdFromUrl();
-      if (id && id !== roomId) {
-        setRoomId(id);
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [roomId]);
 
   // Real-time whiteboard hook
   const {
@@ -53,7 +39,7 @@ export default function App() {
     canUndo,
     canRedo,
     isConnected,
-  } = useWhiteboard(roomId, user?.uid, userName, userColor);
+  } = useWhiteboard(cleanRoomId, user?.uid, userName, userColor);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -61,13 +47,13 @@ export default function App() {
   };
 
   const handleRoomSelect = (newRoomId: string) => {
-    setRoomId(newRoomId);
-    setRoomUrl(newRoomId);
-    showToast(`Tableau #${newRoomId} rejoint`);
+    const formatted = newRoomId.toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    navigate(`/room/${formatted}`);
+    showToast(`Tableau #${formatted} rejoint`);
   };
 
   const handleCopyLink = () => {
-    const fullUrl = `${window.location.origin}/room/${roomId}`;
+    const fullUrl = `${window.location.origin}/room/${cleanRoomId}`;
     navigator.clipboard.writeText(fullUrl).then(() => {
       showToast('Lien du tableau copié dans le presse-papier !');
     }).catch(() => {
@@ -99,7 +85,7 @@ export default function App() {
       if (stroke.points.length === 0) return;
 
       ctx.save();
-      ctx.lineWidth = stroke.size * 1.5; // Scale up stroke width slightly for HD PNG
+      ctx.lineWidth = stroke.size * 1.5;
       ctx.strokeStyle = stroke.type === 'eraser' ? '#FFFFFF' : stroke.color;
 
       if (stroke.points.length === 1) {
@@ -138,7 +124,7 @@ export default function App() {
 
     const dataUrl = canvas.toDataURL('image/png');
     const link = document.createElement('a');
-    link.download = `tableau-blanc-${roomId}.png`;
+    link.download = `tableau-blanc-${cleanRoomId}.png`;
     link.href = dataUrl;
     link.click();
 
@@ -185,7 +171,7 @@ export default function App() {
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-white select-none">
       {/* Top Presence & Room Header */}
       <PresenceBar
-        roomId={roomId}
+        roomId={cleanRoomId}
         activeUsers={activeUsers}
         isConnected={isConnected}
         userName={userName}
@@ -233,7 +219,7 @@ export default function App() {
 
       {/* Room Selector Modal */}
       <RoomSelectorModal
-        currentRoomId={roomId}
+        currentRoomId={cleanRoomId}
         isOpen={isRoomModalOpen}
         onClose={() => setIsRoomModalOpen(false)}
         onSelectRoom={handleRoomSelect}
@@ -242,5 +228,20 @@ export default function App() {
       {/* Action Feedback Toast */}
       <Toast message={toastMessage} />
     </div>
+  );
+}
+
+function HomeRedirect() {
+  const newRoomId = generateRandomRoomId();
+  return <Navigate to={`/room/${newRoomId}`} replace />;
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomeRedirect />} />
+      <Route path="/room/:roomId" element={<WhiteboardRoom />} />
+      <Route path="*" element={<HomeRedirect />} />
+    </Routes>
   );
 }
