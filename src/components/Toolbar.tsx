@@ -157,54 +157,66 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
             {/* Color Palette Popover */}
             {showColorPicker && (
-              <div className="absolute top-full left-0 mt-2 p-3 sm:p-4 bg-white rounded-3xl cartoon-shadow-lg border-3 border-slate-900 z-50 w-64 sm:w-72 shadow-2xl animate-in fade-in zoom-in-95 duration-100">
-                <div className="flex items-center justify-between mb-2 sm:mb-3">
-                  <p className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    Couleurs Magiques 🎨
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowColorPicker(false)}
-                    className="text-xs font-black text-slate-500 hover:text-slate-900 px-1.5 py-0.5 rounded-lg border border-slate-300"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Presets Grid */}
-                <div className="grid grid-cols-5 gap-2 mb-3">
-                  {PRESET_COLORS.map((c) => (
+              <>
+                {/* Backdrop on mobile/desktop to capture outside clicks */}
+                <div
+                  className="fixed inset-0 z-40 bg-black/10"
+                  onClick={() => setShowColorPicker(false)}
+                  onTouchStart={() => setShowColorPicker(false)}
+                />
+                <div
+                  className="fixed top-16 left-4 right-4 sm:absolute sm:top-full sm:left-0 sm:right-auto mt-2 p-3 sm:p-4 bg-white rounded-3xl cartoon-shadow-lg border-3 border-slate-900 z-50 sm:w-72 shadow-2xl animate-in fade-in zoom-in-95 duration-100"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between mb-2 sm:mb-3">
+                    <p className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                      Couleurs Magiques 🎨
+                    </p>
                     <button
-                      key={c}
                       type="button"
-                      onClick={() => handleSelectColor(c)}
-                      className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl border-2 border-slate-900 transition-transform hover:scale-110 flex items-center justify-center shadow-xs cursor-pointer ${
-                        currentColor.toLowerCase() === c.toLowerCase()
-                          ? 'ring-4 ring-pink-400 scale-105'
-                          : ''
-                      }`}
-                      style={{ backgroundColor: c }}
+                      onClick={() => setShowColorPicker(false)}
+                      className="text-xs font-black text-slate-500 hover:text-slate-900 px-2 py-1 rounded-lg border border-slate-300 bg-slate-100"
                     >
-                      {currentColor.toLowerCase() === c.toLowerCase() && (
-                        <Check className="w-4 h-4 text-white drop-shadow-md stroke-[3]" />
-                      )}
+                      ✕
                     </button>
-                  ))}
-                </div>
+                  </div>
 
-                {/* Custom Color Input */}
-                <div className="pt-2.5 border-t-2 border-slate-900 flex items-center justify-between gap-2">
-                  <span className="text-xs text-slate-900 font-extrabold">Couleur personnalisée</span>
-                  <input
-                    type="color"
-                    value={currentColor}
-                    onChange={(e) => {
-                      handleSelectColor(e.target.value);
-                    }}
-                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl cursor-pointer border-2 border-slate-900 p-0 overflow-hidden shadow-xs"
-                  />
+                  {/* Presets Grid */}
+                  <div className="grid grid-cols-5 gap-2 mb-3">
+                    {PRESET_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => handleSelectColor(c)}
+                        className={`w-9 h-9 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl border-2 border-slate-900 transition-transform hover:scale-110 flex items-center justify-center shadow-xs cursor-pointer ${
+                          currentColor.toLowerCase() === c.toLowerCase()
+                            ? 'ring-4 ring-pink-400 scale-105'
+                            : ''
+                        }`}
+                        style={{ backgroundColor: c }}
+                      >
+                        {currentColor.toLowerCase() === c.toLowerCase() && (
+                          <Check className="w-4 h-4 text-white drop-shadow-md stroke-[3]" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Custom Color Input */}
+                  <div className="pt-2.5 border-t-2 border-slate-900 flex items-center justify-between gap-2">
+                    <span className="text-xs text-slate-900 font-extrabold">Couleur personnalisée</span>
+                    <input
+                      type="color"
+                      value={currentColor}
+                      onChange={(e) => {
+                        handleSelectColor(e.target.value);
+                      }}
+                      className="w-9 h-9 rounded-xl cursor-pointer border-2 border-slate-900 p-0 overflow-hidden shadow-xs"
+                    />
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
 
