@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "rooms": {
+      "title": "Room",
+      "description": "Collaborative whiteboard room metadata",
+      "type": "object",
+      "properties": {
+        "createdAt": { "type": "number" },
+        "lastModified": { "type": "number" },
+        "clearTimestamp": { "type": "number" },
+        "name": { "type": "string" }
+      },
+      "required": ["createdAt"]
+    },
+    "rooms/strokes": {
+      "title": "Stroke",
+      "description": "Individual drawing stroke",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "type": { "type": "string" },
+        "color": { "type": "string" },
+        "size": { "type": "number" },
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" }
+            },
+            "required": ["x", "y"]
+          }
+        },
+        "timestamp": { "type": "number" },
+        "deleted": { "type": "boolean" }
+      },
+      "required": ["userId", "type", "color", "size", "points", "timestamp"]
+    },
+    "rooms/presence": {
+      "title": "Presence",
+      "description": "User cursor and active status",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userColor": { "type": "string" },
+        "cursor": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        },
+        "isDrawing": { "type": "boolean" },
+        "lastSeen": { "type": "number" }
+      },
+      "required": ["userId", "userName", "userColor", "lastSeen"]
+    }
+  }
+}

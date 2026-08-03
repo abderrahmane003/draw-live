@@ -1,0 +1,6 @@
+{
+  "name": "Tableau Blanc Collaboratif",
+  "description": "Application web de tableau blanc collaboratif en temps réel avec dessin vectoriel, pinceau, gomme, annulation/rétablissement, gestion des rooms et présence multi-utilisateurs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
