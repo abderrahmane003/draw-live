@@ -36,6 +36,7 @@ export function useWhiteboard(
   // Ensure Room document exists in Firestore
   useEffect(() => {
     if (!roomId) return;
+    console.log(`🚪 [Room] Room ouverte: #${roomId}`);
 
     const roomRef = doc(db, 'rooms', roomId);
     getDoc(roomRef).then((snapshot) => {
@@ -48,8 +49,10 @@ export function useWhiteboard(
           name: `Tableau #${roomId}`,
         };
         setDoc(roomRef, newRoom).catch((err) =>
-          console.error('Error creating room doc:', err)
+          console.error('❌ [Room] Erreur création room doc:', err)
         );
+      } else {
+        console.log(`📄 [Document reçu] Room metadata chargée pour #${roomId}`);
       }
     });
 
@@ -66,6 +69,7 @@ export function useWhiteboard(
   // Listen to strokes in real-time
   useEffect(() => {
     if (!roomId) return;
+    console.log(`🎧 [Listener créé] Ecouteur de traits activé pour la room #${roomId}`);
 
     const strokesRef = collection(db, 'rooms', roomId, 'strokes');
     const q = query(strokesRef, orderBy('timestamp', 'asc'));
@@ -90,7 +94,7 @@ export function useWhiteboard(
             deleted: data.deleted || false,
           });
         });
-        console.log('📡 [Firestore Sync] Nombre de traits reçus:', strokeList.length);
+        console.log(`📡 [Firestore Sync] Document reçu. Nombre de traits reçus: ${strokeList.length}`);
         setStrokes(strokeList);
 
         if (userId) {
@@ -106,7 +110,10 @@ export function useWhiteboard(
       }
     );
 
-    return () => unsubStrokes();
+    return () => {
+      console.log(`🛑 [Listener détruit] Ecouteur de traits désactivé pour #${roomId}`);
+      unsubStrokes();
+    };
   }, [roomId, userId]);
 
   // Listen to presences in real-time
@@ -233,7 +240,7 @@ export function useWhiteboard(
     });
 
     try {
-      console.log('✍️ [Firestore Write] Écriture d\'un nouveau trait dans Firestore:', newStroke.id);
+      console.log('✍️ [Firestore Write] Trait enregistré dans Firestore:', newStroke.id);
       await setDoc(strokeRef, newStroke);
       const roomRef = doc(db, 'rooms', roomId);
       setDoc(
@@ -246,7 +253,7 @@ export function useWhiteboard(
         { merge: true }
       ).catch(() => {});
     } catch (err) {
-      console.error('Error saving stroke to Firestore:', err);
+      console.error('❌ [Firestore Write] Erreur écriture trait dans Firestore:', err);
     }
 
     // Clear local redo stack when drawing a new stroke
