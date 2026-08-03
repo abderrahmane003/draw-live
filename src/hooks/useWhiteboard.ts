@@ -74,6 +74,7 @@ export function useWhiteboard(
       q,
       (snapshot) => {
         setIsConnected(true);
+        console.log('📡 [Firestore Sync] Connexion Firestore réussie. Réception d\'une mise à jour temps réel.');
         const strokeList: Stroke[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
@@ -89,6 +90,7 @@ export function useWhiteboard(
             deleted: data.deleted || false,
           });
         });
+        console.log('📡 [Firestore Sync] Nombre de traits reçus:', strokeList.length);
         setStrokes(strokeList);
 
         if (userId) {
@@ -99,7 +101,7 @@ export function useWhiteboard(
         }
       },
       (error) => {
-        console.error('Error listening to strokes:', error);
+        console.error('❌ [Firestore Sync] Erreur de connexion aux traits:', error);
         setIsConnected(false);
       }
     );
@@ -231,6 +233,7 @@ export function useWhiteboard(
     });
 
     try {
+      console.log('✍️ [Firestore Write] Écriture d\'un nouveau trait dans Firestore:', newStroke.id);
       await setDoc(strokeRef, newStroke);
       const roomRef = doc(db, 'rooms', roomId);
       setDoc(

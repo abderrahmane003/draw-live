@@ -12,16 +12,22 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || appletConfig.appId,
 };
 
-const envDbId = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID;
-const configDbId = appletConfig.firestoreDatabaseId;
+const rawDatabaseId =
+  import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID ||
+  appletConfig.firestoreDatabaseId;
+
 const databaseId =
-  (envDbId && envDbId !== '(default)' ? envDbId : undefined) ||
-  (configDbId && configDbId !== '(default)' ? configDbId : undefined);
+  rawDatabaseId && rawDatabaseId !== '(default)' ? rawDatabaseId : undefined;
 
 const app: FirebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
 export const db: Firestore = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
 
+console.log('🔥 [Firebase Init] Firebase initialisé');
+console.log('🔥 [Firebase Init] Project ID utilisé:', firebaseConfig.projectId);
+console.log('🔥 [Firebase Init] Database ID utilisée:', databaseId || '(default)');
+
 export { signInAnonymously, onAuthStateChanged };
 export type { User };
+
