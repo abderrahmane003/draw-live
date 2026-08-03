@@ -34,35 +34,39 @@ export function useWhiteboard(
 
   const lastPresenceUpdateRef = useRef<number>(0);
 
-  // Ensure Room document exists in Firestore
+  // Ensure Room document exists in Firestore and listen to metadata
   useEffect(() => {
     if (!roomId) return;
 
     const roomRef = doc(db, 'rooms', roomId);
-    getDoc(roomRef).then((snapshot) => {
-      if (!snapshot.exists()) {
-        const newRoom = {
-          id: roomId,
-          createdAt: Date.now(),
-          lastModified: Date.now(),
-          clearTimestamp: 0,
-          name: `Tableau #${roomId}`,
-        };
-        setDoc(roomRef, newRoom, { merge: true }).catch((err) =>
-          console.error('Error creating room doc:', err)
-        );
-      }
-    }).catch((err) => console.error('Error fetching room doc:', err));
+    const now = Date.now();
+
+    // Ensure room document exists with merge: true so existing fields are kept
+    setDoc(
+      roomRef,
+      {
+        id: roomId,
+        name: `Tableau #${roomId}`,
+        lastModified: now,
+        createdAt: now,
+        clearTimestamp: 0,
+      },
+      { merge: true }
+    ).catch((err) => console.error('Error creating room doc:', err));
 
     // Listen to Room metadata
     const unsubRoom = onSnapshot(
       roomRef,
       (snapshot) => {
+        setIsConnected(true);
         if (snapshot.exists()) {
           setRoomInfo(snapshot.data() as RoomInfo);
         }
       },
-      (err) => console.error('Error listening to room info:', err)
+      (err) => {
+        console.error('Error listening to room info:', err);
+        setIsConnected(false);
+      }
     );
 
     return () => unsubRoom();
@@ -236,7 +240,7 @@ export function useWhiteboard(
     try {
       await setDoc(strokeRef, newStroke);
       const roomRef = doc(db, 'rooms', roomId);
-      updateDoc(roomRef, { lastModified: timestamp }).catch(() => {});
+      setDoc(roomRef, { id: roomId, lastModified: timestamp }, { merge: true }).catch(() => {});
     } catch (err) {
       console.error('Error saving stroke to Firestore:', err);
     }
