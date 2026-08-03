@@ -1,17 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { generateRandomRoomId } from '../lib/utils';
+import { Sparkles, ArrowRight, X, Layers, Globe, Clock, Check } from 'lucide-react';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { generateRandomRoomId, formatTimeAgo } from '../lib/utils';
-import {
-  X,
-  Plus,
-  ArrowRight,
-  Globe,
-  Clock,
-  Check,
-  Sparkles,
-  Layers,
-} from 'lucide-react';
+import { RoomInfo } from '../types';
 
 interface RoomSelectorModalProps {
   currentRoomId: string;
@@ -20,46 +12,43 @@ interface RoomSelectorModalProps {
   onSelectRoom: (roomId: string) => void;
 }
 
-interface OpenRoomInfo {
-  id: string;
-  name: string;
-  lastModified: number;
-}
-
 export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
   currentRoomId,
   isOpen,
   onClose,
   onSelectRoom,
 }) => {
-  const [openRooms, setOpenRooms] = useState<OpenRoomInfo[]>([]);
   const [inputRoom, setInputRoom] = useState('');
+  const [openRooms, setOpenRooms] = useState<RoomInfo[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
 
-  // Sync open rooms from Firestore
+  // Subscribe to open rooms from Firestore
   useEffect(() => {
     if (!isOpen) return;
 
+    setLoadingRooms(true);
     const roomsRef = collection(db, 'rooms');
+    const q = query(roomsRef, orderBy('lastModified', 'desc'), limit(12));
 
     const unsub = onSnapshot(
-      roomsRef,
+      q,
       (snapshot) => {
-        const list: OpenRoomInfo[] = [];
+        const rooms: RoomInfo[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          list.push({
+          rooms.push({
             id: docSnap.id,
             name: data.name || `Tableau #${docSnap.id}`,
-            lastModified: data.lastModified || data.createdAt || Date.now(),
+            createdAt: data.createdAt || Date.now(),
+            lastModified: data.lastModified || Date.now(),
+            clearTimestamp: data.clearTimestamp || 0,
           });
         });
-        list.sort((a, b) => b.lastModified - a.lastModified);
-        setOpenRooms(list);
+        setOpenRooms(rooms);
         setLoadingRooms(false);
       },
       (err) => {
-        console.error('Error fetching rooms for modal:', err);
+        console.error('Error fetching open rooms:', err);
         setLoadingRooms(false);
       }
     );
@@ -71,17 +60,28 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputRoom.trim()) {
-      onSelectRoom(inputRoom.trim());
+    const cleaned = inputRoom.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    if (cleaned) {
+      onSelectRoom(cleaned);
       setInputRoom('');
       onClose();
     }
   };
 
   const handleCreateNew = () => {
-    const newId = generateRandomRoomId();
-    onSelectRoom(newId);
+    const newRoomId = generateRandomRoomId();
+    onSelectRoom(newRoomId);
     onClose();
+  };
+
+  const formatTimeAgo = (timestamp: number) => {
+    const diff = Math.floor((Date.now() - timestamp) / 1000);
+    if (diff < 10) return 'À l\'instant';
+    if (diff < 60) return `Il y a ${diff} sec`;
+    const mins = Math.floor(diff / 60);
+    if (mins < 60) return `Il y a ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    return `Il y a ${hours} h`;
   };
 
   return (
@@ -101,26 +101,26 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
 
           <button
             onClick={onClose}
-            className="text-slate-900 hover:bg-amber-400 p-1.5 rounded-xl border-2 border-slate-900 transition-all cartoon-btn cursor-pointer"
+            className="text-slate-900 hover:bg-amber-400 p-1.5 rounded-xl border-2 border-slate-900 transition-all cartoon-btn"
           >
             <X className="w-5 h-5 stroke-[3]" />
           </button>
         </div>
 
-        {/* Content */}
+        {/* Scrollable Content */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1 bg-amber-50">
           {/* Create New Random Room */}
           <div>
             <button
               onClick={handleCreateNew}
-              className="w-full py-3.5 px-4 bg-pink-500 hover:bg-pink-400 text-white font-black rounded-2xl border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-2 text-sm cursor-pointer"
+              className="w-full py-3.5 px-4 bg-pink-500 hover:bg-pink-400 text-white font-black rounded-2xl border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-2 text-sm"
             >
               <Sparkles className="w-5 h-5 stroke-[2.5]" />
               <span>Créer une nouvelle room magique ✨</span>
             </button>
           </div>
 
-          {/* Join with Code */}
+          {/* Join By Room Code */}
           <form onSubmit={handleJoin} className="space-y-2 bg-white p-4 rounded-2xl border-3 border-slate-900 cartoon-shadow">
             <label className="block text-xs font-black text-slate-900">
               Rejoindre avec un code secret :
@@ -137,7 +137,7 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
               <button
                 type="submit"
                 disabled={!inputRoom.trim()}
-                className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 text-slate-900 font-black rounded-xl border-2 border-slate-900 transition-all flex items-center gap-1.5 cartoon-btn text-xs cursor-pointer"
+                className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 text-slate-900 font-black rounded-xl border-2 border-slate-900 transition-all flex items-center gap-1.5 cartoon-btn text-xs"
               >
                 <span>Rejoindre</span>
                 <ArrowRight className="w-4 h-4 stroke-[3]" />
@@ -204,7 +204,7 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
                         className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 border-2 border-slate-900 cartoon-btn ${
                           isCurrent
                             ? 'bg-emerald-400 text-slate-900 cursor-default'
-                            : 'bg-pink-500 text-white hover:bg-pink-400 cursor-pointer'
+                            : 'bg-pink-500 text-white hover:bg-pink-400'
                         }`}
                       >
                         {isCurrent ? 'Actif' : 'Entrer'}
@@ -220,3 +220,4 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
     </div>
   );
 };
+

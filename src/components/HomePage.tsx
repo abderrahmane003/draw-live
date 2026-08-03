@@ -1,73 +1,104 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { useAuth } from '../hooks/useAuth';
-import { generateRandomRoomId, formatTimeAgo } from '../lib/utils';
+import { RoomInfo } from '../types';
+import { generateRandomRoomId } from '../lib/utils';
 import {
-  Paintbrush,
-  Plus,
+  Sparkles,
   ArrowRight,
   Globe,
   Clock,
   Users,
-  Search,
-  Sparkles,
-  Star,
-  Palette,
-  Smile,
+  Plus,
   Pencil,
+  Search,
   Check,
-  Wand2,
   RefreshCw,
+  Palette,
+  Paintbrush,
+  Star,
+  Smile,
+  Wand2,
+  Gamepad2,
 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
-interface RoomSummary {
-  id: string;
-  name: string;
-  lastModified: number;
+interface RoomWithPresence extends RoomInfo {
   activeUsersCount: number;
 }
 
 const CARD_COLORS = [
-  'bg-pink-100 border-pink-500 text-pink-900',
-  'bg-amber-100 border-amber-500 text-amber-900',
-  'bg-sky-100 border-sky-500 text-sky-900',
-  'bg-emerald-100 border-emerald-500 text-emerald-900',
-  'bg-purple-100 border-purple-500 text-purple-900',
+  'bg-pink-100 border-pink-400 text-pink-900',
+  'bg-amber-100 border-amber-400 text-amber-900',
+  'bg-emerald-100 border-emerald-400 text-emerald-900',
+  'bg-sky-100 border-sky-400 text-sky-900',
+  'bg-purple-100 border-purple-400 text-purple-900',
+  'bg-orange-100 border-orange-400 text-orange-900',
 ];
 
-export const HomePage: React.FC = () => {
+export function HomePage() {
   const navigate = useNavigate();
   const { userName, userColor, updateProfile } = useAuth();
 
   const [inputRoomCode, setInputRoomCode] = useState('');
-  const [rooms, setRooms] = useState<RoomSummary[]>([]);
+  const [rooms, setRooms] = useState<RoomWithPresence[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(userName);
 
-  // Real-time sync of available rooms
+  // Subscribe to rooms in Firestore
   useEffect(() => {
     const roomsRef = collection(db, 'rooms');
+    const q = query(roomsRef, orderBy('lastModified', 'desc'), limit(30));
 
-    const unsubscribe = onSnapshot(
-      roomsRef,
+    const unsubRooms = onSnapshot(
+      q,
       (snapshot) => {
-        const list: RoomSummary[] = [];
+        const fetchedRooms: RoomInfo[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          list.push({
+          fetchedRooms.push({
             id: docSnap.id,
             name: data.name || `Tableau #${docSnap.id}`,
-            lastModified: data.lastModified || data.createdAt || Date.now(),
-            activeUsersCount: 0,
+            createdAt: data.createdAt || Date.now(),
+            lastModified: data.lastModified || Date.now(),
+            clearTimestamp: data.clearTimestamp || 0,
           });
         });
-        list.sort((a, b) => b.lastModified - a.lastModified);
-        setRooms(list);
-        setLoading(false);
+
+        if (fetchedRooms.length === 0) {
+          setRooms([]);
+          setLoading(false);
+          return;
+        }
+
+        const roomPresenceMap: Record<string, number> = {};
+
+        fetchedRooms.forEach((room) => {
+          const presenceRef = collection(db, 'rooms', room.id, 'presence');
+          onSnapshot(presenceRef, (presenceSnap) => {
+            const now = Date.now();
+            let count = 0;
+            presenceSnap.forEach((pDoc) => {
+              const pData = pDoc.data();
+              if (now - (pData.lastSeen || 0) < 25000) {
+                count++;
+              }
+            });
+            roomPresenceMap[room.id] = count;
+
+            setRooms(
+              fetchedRooms.map((r) => ({
+                ...r,
+                activeUsersCount: roomPresenceMap[r.id] || 0,
+              }))
+            );
+            setLoading(false);
+          });
+        });
       },
       (err) => {
         console.error('Error fetching rooms:', err);
@@ -75,23 +106,19 @@ export const HomePage: React.FC = () => {
       }
     );
 
-    return () => unsubscribe();
+    return () => unsubRooms();
   }, []);
 
   const handleCreateNewRoom = () => {
-    const newCode = generateRandomRoomId();
-    navigate(`/room/${newCode}`);
+    const newId = generateRandomRoomId();
+    navigate(`/room/${newId}`);
   };
 
   const handleJoinByCode = (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputRoomCode.trim()) {
-      const cleanCode = inputRoomCode
-        .trim()
-        .toUpperCase()
-        .replace(/[^A-Z0-9_-]/g, '');
-      navigate(`/room/${cleanCode}`);
-    }
+    if (!inputRoomCode.trim()) return;
+    const clean = inputRoomCode.toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    navigate(`/room/${clean}`);
   };
 
   const handleSaveProfile = () => {
@@ -101,10 +128,22 @@ export const HomePage: React.FC = () => {
     }
   };
 
+  const formatTimeAgo = (timestamp: number) => {
+    const diff = Math.floor((Date.now() - timestamp) / 1000);
+    if (diff < 15) return 'À l\'instant';
+    if (diff < 60) return `Il y a ${diff}s`;
+    const mins = Math.floor(diff / 60);
+    if (mins < 60) return `Il y a ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `Il y a ${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `Il y a ${days}j`;
+  };
+
   const filteredRooms = rooms.filter(
     (r) =>
-      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.id.toLowerCase().includes(searchQuery.toLowerCase())
+      r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -152,7 +191,7 @@ export const HomePage: React.FC = () => {
                 onClick={handleSaveProfile}
                 className="p-1.5 bg-emerald-400 hover:bg-emerald-300 text-slate-900 font-bold rounded-xl border-2 border-slate-900 cartoon-btn"
               >
-                <Check className="w-4 h-4 stroke-[3]" />
+                <Check className="w-4 h-4" />
               </button>
             </div>
           ) : (
@@ -195,10 +234,10 @@ export const HomePage: React.FC = () => {
             </p>
 
             {/* Actions Grid */}
-            <div className="pt-2 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+            <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <button
                 onClick={handleCreateNewRoom}
-                className="px-6 py-4 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-extrabold text-base transition-all border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-3 cursor-pointer"
+                className="px-6 py-4 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-extrabold text-base transition-all border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-3"
               >
                 <Plus className="w-6 h-6 stroke-[3]" />
                 <span>Nouveau Tableau Blanc 🚀</span>
@@ -216,7 +255,7 @@ export const HomePage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!inputRoomCode.trim()}
-                  className="px-5 py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 disabled:opacity-40 text-slate-900 font-extrabold text-xs sm:text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                  className="px-5 py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 disabled:opacity-40 text-slate-900 font-extrabold text-xs sm:text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-2 shrink-0"
                 >
                   <span>Entrer</span>
                   <ArrowRight className="w-5 h-5 stroke-[3]" />
@@ -277,21 +316,21 @@ export const HomePage: React.FC = () => {
               </div>
               <button
                 onClick={handleCreateNewRoom}
-                className="px-6 py-3 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-black text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn inline-flex items-center gap-2 cursor-pointer"
+                className="px-6 py-3 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-black text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn inline-flex items-center gap-2"
               >
                 <Plus className="w-5 h-5 stroke-[3]" />
                 <span>Créer une room rigolote</span>
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredRooms.map((room, idx) => {
                 const colorStyle = CARD_COLORS[idx % CARD_COLORS.length];
                 return (
                   <div
                     key={room.id}
                     onClick={() => navigate(`/room/${room.id}`)}
-                    className="group bg-white hover:bg-amber-50 border-3 border-slate-900 rounded-3xl p-5 transition-all duration-150 cursor-pointer cartoon-shadow cartoon-btn flex flex-col justify-between space-y-4 relative overflow-hidden"
+                    className={`group bg-white hover:bg-amber-50 border-3 border-slate-900 rounded-3xl p-5 transition-all duration-150 cursor-pointer cartoon-shadow cartoon-btn flex flex-col justify-between space-y-4 relative overflow-hidden`}
                   >
                     {/* Top Header of Card */}
                     <div className="flex items-start justify-between gap-3">
@@ -348,9 +387,10 @@ export const HomePage: React.FC = () => {
       {/* Playful Footer */}
       <footer className="border-t-4 border-slate-900 bg-amber-300 py-6 text-center text-xs font-black text-slate-900">
         <p className="flex items-center justify-center gap-2">
-          <span>drawing live ✨ — Le tableau blanc en ligne 100% collaboratif & rigolo !</span>
+          <span>Flowboard ✨ — Le tableau blanc en ligne 100% collaboratif & rigolo !</span>
         </p>
       </footer>
     </div>
   );
-};
+}
+

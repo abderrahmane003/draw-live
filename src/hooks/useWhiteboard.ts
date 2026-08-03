@@ -9,7 +9,6 @@ import {
   orderBy,
   where,
   getDoc,
-  getDocs,
   deleteDoc,
   writeBatch,
   serverTimestamp,
@@ -34,40 +33,32 @@ export function useWhiteboard(
 
   const lastPresenceUpdateRef = useRef<number>(0);
 
-  // Ensure Room document exists in Firestore and listen to metadata
+  // Ensure Room document exists in Firestore
   useEffect(() => {
     if (!roomId) return;
 
     const roomRef = doc(db, 'rooms', roomId);
-    const now = Date.now();
-
-    // Ensure room document exists with merge: true so existing fields are kept
-    setDoc(
-      roomRef,
-      {
-        id: roomId,
-        name: `Tableau #${roomId}`,
-        lastModified: now,
-        createdAt: now,
-        clearTimestamp: 0,
-      },
-      { merge: true }
-    ).catch((err) => console.error('Error creating room doc:', err));
+    getDoc(roomRef).then((snapshot) => {
+      if (!snapshot.exists()) {
+        const newRoom = {
+          id: roomId,
+          createdAt: Date.now(),
+          lastModified: Date.now(),
+          clearTimestamp: 0,
+          name: `Tableau #${roomId}`,
+        };
+        setDoc(roomRef, newRoom).catch((err) =>
+          console.error('Error creating room doc:', err)
+        );
+      }
+    });
 
     // Listen to Room metadata
-    const unsubRoom = onSnapshot(
-      roomRef,
-      (snapshot) => {
-        setIsConnected(true);
-        if (snapshot.exists()) {
-          setRoomInfo(snapshot.data() as RoomInfo);
-        }
-      },
-      (err) => {
-        console.error('Error listening to room info:', err);
-        setIsConnected(false);
+    const unsubRoom = onSnapshot(roomRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setRoomInfo(snapshot.data() as RoomInfo);
       }
-    );
+    });
 
     return () => unsubRoom();
   }, [roomId]);
@@ -77,9 +68,10 @@ export function useWhiteboard(
     if (!roomId) return;
 
     const strokesRef = collection(db, 'rooms', roomId, 'strokes');
+    const q = query(strokesRef, orderBy('timestamp', 'asc'));
 
     const unsubStrokes = onSnapshot(
-      strokesRef,
+      q,
       (snapshot) => {
         setIsConnected(true);
         const strokeList: Stroke[] = [];
@@ -97,10 +89,6 @@ export function useWhiteboard(
             deleted: data.deleted || false,
           });
         });
-
-        // Client-side sort by timestamp ascending
-        strokeList.sort((a, b) => a.timestamp - b.timestamp);
-
         setStrokes(strokeList);
 
         if (userId) {
@@ -208,7 +196,7 @@ export function useWhiteboard(
   // Filter valid strokes taking room clearTimestamp into account
   const validStrokes = strokes.filter((s) => {
     if (s.deleted) return false;
-    if (roomInfo?.clearTimestamp && s.timestamp <= roomInfo.clearTimestamp) {
+    if (roomInfo?.clearTimestamp && s.timestamp < roomInfo.clearTimestamp) {
       return false;
     }
     return true;
@@ -240,7 +228,7 @@ export function useWhiteboard(
     try {
       await setDoc(strokeRef, newStroke);
       const roomRef = doc(db, 'rooms', roomId);
-      setDoc(roomRef, { id: roomId, lastModified: timestamp }, { merge: true }).catch(() => {});
+      updateDoc(roomRef, { lastModified: timestamp }).catch(() => {});
     } catch (err) {
       console.error('Error saving stroke to Firestore:', err);
     }
@@ -276,26 +264,19 @@ export function useWhiteboard(
     setUserUndoStack((prev) => prev.slice(0, -1));
   };
 
-  // Clear room canvas without deleting database documents
+  // Clear room canvas
   const clearRoomCanvas = async () => {
     if (!roomId) return;
 
-    const now = Date.now() + 50;
+    const now = Date.now();
     const roomRef = doc(db, 'rooms', roomId);
 
-    // Optimistically update roomInfo clearTimestamp so canvas clears immediately
-    setRoomInfo((prev) =>
-      prev
-        ? { ...prev, clearTimestamp: now, lastModified: now }
-        : { id: roomId, createdAt: now, lastModified: now, clearTimestamp: now }
-    );
-    setUserUndoStack([]);
+    await updateDoc(roomRef, {
+      clearTimestamp: now,
+      lastModified: now,
+    });
 
-    try {
-      await setDoc(roomRef, { clearTimestamp: now, lastModified: now }, { merge: true });
-    } catch (err) {
-      console.error('Error clearing room in Firestore:', err);
-    }
+    setUserUndoStack([]);
   };
 
   return {

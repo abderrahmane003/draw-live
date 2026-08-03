@@ -2,65 +2,65 @@
 
 @layer utilities {
   .font-fun {
-    font-family: 'Quicksand', 'Fredoka', system-ui, -apple-system, sans-serif;
+    font-family: 'Fredoka', 'Quicksand', cursive, sans-serif;
   }
   
   .bg-grid-pattern {
-    background-image: radial-gradient(#cbd5e1 1.8px, transparent 1.8px);
+    background-image: radial-gradient(#94A3B8 1.8px, transparent 1.8px);
     background-size: 28px 28px;
   }
 
-  .glass-panel {
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    background: rgba(15, 23, 42, 0.75);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+  .bg-notebook-pattern {
+    background-color: #fffef9;
+    background-image: 
+      linear-gradient(90deg, rgba(239, 68, 68, 0.15) 1px, transparent 0),
+      linear-gradient(#e2e8f0 1px, transparent 0);
+    background-size: 100% 100%, 100% 32px;
+    background-position: 40px 0, 0 0;
   }
 
-  .glass-card {
+  .cartoon-shadow {
+    box-shadow: 3px 4px 0px #1e293b;
+  }
+
+  .cartoon-shadow-lg {
+    box-shadow: 5px 6px 0px #0f172a;
+  }
+
+  .cartoon-shadow-pink {
+    box-shadow: 4px 5px 0px #db2777;
+  }
+
+  .cartoon-shadow-amber {
+    box-shadow: 4px 5px 0px #d97706;
+  }
+
+  .cartoon-btn {
+    transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .cartoon-btn:hover {
+    transform: translateY(-2px);
+  }
+
+  .cartoon-btn:active {
+    transform: translateY(2px);
+    box-shadow: 1px 2px 0px #0f172a !important;
+  }
+
+  .toolbar-blur {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    background: rgba(30, 41, 59, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-  }
-
-  .glass-card-light {
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.06);
-  }
-
-  .glass-btn {
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .glass-btn:hover {
-    transform: translateY(-1px);
-  }
-
-  .glass-btn:active {
-    transform: translateY(1px);
-  }
-
-  .glass-input {
-    background: rgba(15, 23, 42, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(10px);
+    background-color: rgba(255, 255, 255, 0.92);
   }
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Quicksand', system-ui, -apple-system, sans-serif;
+  font-family: 'Fredoka', 'Quicksand', system-ui, -apple-system, sans-serif;
   user-select: none;
-  background-color: #0b0f19;
-  color: #f8fafc;
+  background-color: #fefce8;
   overflow-x: hidden;
   touch-action: manipulation;
 }

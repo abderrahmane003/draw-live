@@ -57,15 +57,3 @@ export function setRoomUrl(roomId: string) {
     window.history.pushState({ roomId }, '', newPath);
   }
 }
-
-export function formatTimeAgo(timestamp: number): string {
-  if (!timestamp) return 'Récemment';
-  const diffSec = Math.floor((Date.now() - timestamp) / 1000);
-  if (diffSec < 60) return "À l'instant";
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `Il y a ${diffMin} min`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `Il y a ${diffHour}h`;
-  const diffDays = Math.floor(diffHour / 24);
-  return `Il y a ${diffDays}j`;
-}

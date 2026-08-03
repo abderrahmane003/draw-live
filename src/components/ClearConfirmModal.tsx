@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, Trash2, X } from 'lucide-react';
 
 interface ClearConfirmModalProps {
   isOpen: boolean;
@@ -32,7 +32,7 @@ export const ClearConfirmModal: React.FC<ClearConfirmModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-slate-900 hover:bg-red-300 p-1.5 rounded-xl border-2 border-slate-900 transition-all cartoon-btn cursor-pointer"
+            className="text-slate-900 hover:bg-red-300 p-1.5 rounded-xl border-2 border-slate-900 transition-all cartoon-btn"
           >
             <X className="w-5 h-5 stroke-[3]" />
           </button>
@@ -57,7 +57,7 @@ export const ClearConfirmModal: React.FC<ClearConfirmModalProps> = ({
         <div className="bg-amber-50 p-4 border-t-4 border-slate-900 flex items-center justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-2xl border-3 border-slate-900 bg-white hover:bg-slate-100 text-slate-900 font-black text-xs cartoon-shadow cartoon-btn cursor-pointer"
+            className="px-5 py-2.5 rounded-2xl border-3 border-slate-900 bg-white hover:bg-slate-100 text-slate-900 font-black text-xs cartoon-shadow cartoon-btn"
           >
             Annuler
           </button>
@@ -66,7 +66,7 @@ export const ClearConfirmModal: React.FC<ClearConfirmModalProps> = ({
               onConfirm();
               onClose();
             }}
-            className="px-6 py-2.5 rounded-2xl bg-red-500 hover:bg-red-400 text-white font-black text-xs border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center gap-2 cursor-pointer"
+            className="px-6 py-2.5 rounded-2xl bg-red-500 hover:bg-red-400 text-white font-black text-xs border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center gap-2"
           >
             <Trash2 className="w-4 h-4 stroke-[3]" />
             <span>Oui, Tout Effacer !</span>
