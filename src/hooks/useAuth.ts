@@ -5,8 +5,14 @@ import { generateRandomUser } from '../lib/utils';
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null);
-
+  const [fallbackUserId] = useState<string>(() => {
+    let id = localStorage.getItem('whiteboard_anon_uid');
+    if (!id) {
+      id = 'anon_' + Math.random().toString(36).substring(2, 11);
+      localStorage.setItem('whiteboard_anon_uid', id);
+    }
+    return id;
+  });
   const [userName, setUserName] = useState<string>(() => {
     return localStorage.getItem('whiteboard_username') || '';
   });
@@ -17,26 +23,17 @@ export function useAuth() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        console.log('🔑 [Firebase Auth] Authentifié sur Firebase. UID Firebase:', currentUser.uid);
         setUser(currentUser);
-        setAuthError(null);
-        setLoading(false);
       } else {
         try {
-          console.log('🔑 [Firebase Auth] Tentative de connexion anonyme à Firebase...');
           const cred = await signInAnonymously(auth);
-          console.log('🔑 [Firebase Auth] Authentification anonyme réussie. UID Firebase:', cred.user.uid);
           setUser(cred.user);
-          setAuthError(null);
-        } catch (err: any) {
-          const errMsg = err?.message || 'Échec de l\'authentification Firebase';
-          console.error('❌ [Firebase Auth] Erreur d\'authentification Firebase:', err);
-          setAuthError(errMsg);
+        } catch (_err) {
+          // Anonymous auth is restricted in this project configuration; fallbackUserId is used instead.
           setUser(null);
-        } finally {
-          setLoading(false);
         }
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -64,12 +61,10 @@ export function useAuth() {
 
   return {
     user,
-    userId: user?.uid,
+    userId: user?.uid || fallbackUserId,
     loading,
-    authError,
     userName,
     userColor,
     updateProfile,
   };
 }
-

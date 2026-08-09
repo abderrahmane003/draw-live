@@ -251,19 +251,23 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     drawStrokeOnCtx,
   ]);
 
-  const isDrawingRef = useRef<boolean>(false);
-  const currentPointsRef = useRef<Point[]>([]);
-
-  // Point conversion helper with clamping for edge movement on mobile screens
+  // Point conversion helper
   const getCanvasPoint = (clientX: number, clientY: number): Point | null => {
     const container = containerRef.current;
     if (!container) return null;
 
     const rect = container.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return null;
+    const xPixel = clientX - rect.left;
+    const yPixel = clientY - rect.top;
 
-    const xPixel = Math.max(0, Math.min(rect.width, clientX - rect.left));
-    const yPixel = Math.max(0, Math.min(rect.height, clientY - rect.top));
+    if (
+      xPixel < 0 ||
+      xPixel > rect.width ||
+      yPixel < 0 ||
+      yPixel > rect.height
+    ) {
+      return null;
+    }
 
     return {
       x: xPixel / rect.width,
@@ -271,92 +275,96 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     };
   };
 
-  // Pointer Down Handler (Mouse, Touch, Stylus)
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!e.isPrimary) return;
-    if (e.button !== undefined && e.button !== 0) return; // Only left click / primary touch
-
-    const point = getCanvasPoint(e.clientX, e.clientY);
+  // Start Drawing
+  const handleStart = (clientX: number, clientY: number) => {
+    const point = getCanvasPoint(clientX, clientY);
     if (!point) return;
 
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch (_err) {
-      // Fallback for browsers without setPointerCapture
-    }
-
-    isDrawingRef.current = true;
-    currentPointsRef.current = [point];
+    const initialPoints = [point];
     setIsDrawing(true);
-    setCurrentPoints([point]);
-
+    setCurrentPoints(initialPoints);
     onCursorMove(point, true, {
-      points: [point],
+      points: initialPoints,
       tool: activeTool,
       color: currentColor,
       size: brushSize,
     });
   };
 
-  // Pointer Move Handler
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!e.isPrimary) return;
-    const point = getCanvasPoint(e.clientX, e.clientY);
+  // Move Drawing
+  const handleMove = (clientX: number, clientY: number) => {
+    const point = getCanvasPoint(clientX, clientY);
 
-    if (isDrawingRef.current && point) {
-      currentPointsRef.current.push(point);
-      const updatedPoints = [...currentPointsRef.current];
-      setCurrentPoints(updatedPoints);
-
-      onCursorMove(point, true, {
-        points: updatedPoints,
-        tool: activeTool,
-        color: currentColor,
-        size: brushSize,
+    if (isDrawing && point) {
+      setCurrentPoints((prev) => {
+        const nextPoints = [...prev, point];
+        onCursorMove(point, true, {
+          points: nextPoints,
+          tool: activeTool,
+          color: currentColor,
+          size: brushSize,
+        });
+        return nextPoints;
       });
-    } else if (point) {
+    } else {
       onCursorMove(point, false);
     }
   };
 
-  // Pointer Up & Cancel Handler
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!e.isPrimary) return;
-
-    try {
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      }
-    } catch (_err) {
-      // Ignore capture release errors
-    }
-
-    if (isDrawingRef.current) {
-      isDrawingRef.current = false;
-      const finalPoints = [...currentPointsRef.current];
-      currentPointsRef.current = [];
-
-      setIsDrawing(false);
-      setCurrentPoints([]);
-
-      if (finalPoints.length > 0 && currentUserId) {
+  // End Drawing
+  const handleEnd = () => {
+    if (isDrawing) {
+      if (currentPoints.length > 0 && currentUserId) {
         onStrokeComplete({
           userId: currentUserId,
           type: activeTool,
           color: currentColor,
           size: brushSize,
-          points: finalPoints,
+          points: currentPoints,
         });
       }
+      setIsDrawing(false);
+      setCurrentPoints([]);
       onCursorMove(null, false);
     }
   };
 
-  // Prevent default scroll on touch
+  // Mouse Handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return; // Only left click
+    handleStart(e.clientX, e.clientY);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    handleMove(e.clientX, e.clientY);
+  };
+
+  const handleMouseUp = () => {
+    handleEnd();
+  };
+
+  const handleMouseLeave = () => {
+    handleEnd();
+    onCursorMove(null, false);
+  };
+
+  // Touch Handlers for Mobile & Tablet
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      handleStart(touch.clientX, touch.clientY);
+    }
+  };
+
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
-      e.preventDefault();
+      const touch = e.touches[0];
+      handleMove(touch.clientX, touch.clientY);
     }
+  };
+
+  const handleTouchEnd = () => {
+    handleEnd();
   };
 
   // Filter other active users (excluding current user)
@@ -367,20 +375,17 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full overflow-hidden select-none bg-slate-50 cursor-crosshair touch-none ${
+      className={`relative w-full h-full overflow-hidden select-none bg-slate-50 cursor-crosshair ${
         showGrid ? 'bg-grid-pattern' : ''
       }`}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onPointerLeave={(e) => {
-        // Only trigger pointer up on leave if pointer capture wasn't active
-        if (isDrawingRef.current && !e.currentTarget.hasPointerCapture(e.pointerId)) {
-          handlePointerUp(e);
-        }
-      }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       {/* Background Main Canvas */}
       <canvas

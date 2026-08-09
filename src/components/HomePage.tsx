@@ -54,15 +54,9 @@ export function HomePage() {
     const roomsRef = collection(db, 'rooms');
     const q = query(roomsRef, orderBy('lastModified', 'desc'), limit(30));
 
-    let presenceUnsubs: (() => void)[] = [];
-
     const unsubRooms = onSnapshot(
       q,
       (snapshot) => {
-        // Clean up previous presence listeners
-        presenceUnsubs.forEach((unsub) => unsub());
-        presenceUnsubs = [];
-
         const fetchedRooms: RoomInfo[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
@@ -82,16 +76,10 @@ export function HomePage() {
         }
 
         const roomPresenceMap: Record<string, number> = {};
-        let currentRoomList = fetchedRooms.map((r) => ({
-          ...r,
-          activeUsersCount: 0,
-        }));
-        setRooms(currentRoomList);
-        setLoading(false);
 
         fetchedRooms.forEach((room) => {
           const presenceRef = collection(db, 'rooms', room.id, 'presence');
-          const pUnsub = onSnapshot(presenceRef, (presenceSnap) => {
+          onSnapshot(presenceRef, (presenceSnap) => {
             const now = Date.now();
             let count = 0;
             presenceSnap.forEach((pDoc) => {
@@ -102,15 +90,14 @@ export function HomePage() {
             });
             roomPresenceMap[room.id] = count;
 
-            setRooms((prev) =>
-              prev.map((r) =>
-                r.id === room.id
-                  ? { ...r, activeUsersCount: roomPresenceMap[room.id] || 0 }
-                  : r
-              )
+            setRooms(
+              fetchedRooms.map((r) => ({
+                ...r,
+                activeUsersCount: roomPresenceMap[r.id] || 0,
+              }))
             );
+            setLoading(false);
           });
-          presenceUnsubs.push(pUnsub);
         });
       },
       (err) => {
@@ -119,10 +106,7 @@ export function HomePage() {
       }
     );
 
-    return () => {
-      unsubRooms();
-      presenceUnsubs.forEach((unsub) => unsub());
-    };
+    return () => unsubRooms();
   }, []);
 
   const handleCreateNewRoom = () => {
@@ -182,8 +166,8 @@ export function HomePage() {
             <Paintbrush className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="font-extrabold text-slate-900 text-xl sm:text-2xl tracking-wide flex items-center gap-2 capitalize">
-              drawing live 🎨
+            <h1 className="font-extrabold text-slate-900 text-xl sm:text-2xl tracking-wide flex items-center gap-2">
+              Flowboard ✨
             </h1>
             <p className="text-xs font-bold text-slate-800">
               Le tableau blanc rigolo & magique !

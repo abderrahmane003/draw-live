@@ -53,16 +53,6 @@
     -webkit-backdrop-filter: blur(16px);
     background-color: rgba(255, 255, 255, 0.92);
   }
-
-  /* Hide scrollbar for Chrome, Safari and Opera */
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  /* Hide scrollbar for IE, Edge and Firefox */
-  .no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-  }
 }
 
 body {
@@ -70,9 +60,8 @@ body {
   padding: 0;
   font-family: 'Fredoka', 'Quicksand', system-ui, -apple-system, sans-serif;
   user-select: none;
+  overflow: hidden;
   background-color: #fefce8;
-  overflow-x: hidden;
-  touch-action: manipulation;
 }
 
 
