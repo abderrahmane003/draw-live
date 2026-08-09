@@ -9,7 +9,7 @@ import { RoomSelectorModal } from './components/RoomSelectorModal';
 import { ClearConfirmModal } from './components/ClearConfirmModal';
 import { HomePage } from './components/HomePage';
 import { Toast } from './components/Toast';
-import { StrokeType } from './types';
+import { StrokeType, PenType } from './types';
 import { generateRandomRoomId } from './lib/utils';
 import { Loader2 } from 'lucide-react';
 
@@ -22,8 +22,9 @@ function WhiteboardRoom() {
   const { userId, loading: authLoading, userName, userColor, updateProfile } = useAuth();
 
   const [activeTool, setActiveTool] = useState<StrokeType>('pen');
+  const [activePenType, setActivePenType] = useState<PenType>('stylo');
   const [currentColor, setCurrentColor] = useState<string>('#0F172A');
-  const [brushSize, setBrushSize] = useState<number>(6);
+  const [brushSize, setBrushSize] = useState<number>(5);
   const [showGrid, setShowGrid] = useState<boolean>(true);
 
   const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
@@ -81,20 +82,94 @@ function WhiteboardRoom() {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
     strokes.forEach((stroke) => {
       if (stroke.points.length === 0) return;
 
       ctx.save();
-      ctx.lineWidth = stroke.size * 1.5;
-      ctx.strokeStyle = stroke.type === 'eraser' ? '#FFFFFF' : stroke.color;
+      if (stroke.type === 'eraser') {
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = stroke.size * 1.5;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.globalAlpha = 1.0;
+      } else {
+        ctx.strokeStyle = stroke.color;
+        ctx.fillStyle = stroke.color;
+
+        switch (stroke.penType) {
+          case 'surligneur':
+            ctx.lineCap = 'square';
+            ctx.lineJoin = 'bevel';
+            ctx.lineWidth = stroke.size * 2.2;
+            ctx.globalAlpha = 0.4;
+            break;
+          case 'crayon':
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = Math.max(1, stroke.size * 0.9);
+            ctx.globalAlpha = 0.75;
+            break;
+          case 'feutre':
+            ctx.lineCap = 'butt';
+            ctx.lineJoin = 'miter';
+            ctx.lineWidth = stroke.size * 1.25;
+            ctx.globalAlpha = 1.0;
+            break;
+          case 'plume':
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = stroke.size * 1.1;
+            ctx.globalAlpha = 0.95;
+            break;
+          case 'calligraphie': {
+            ctx.globalAlpha = 0.95;
+            const angle = Math.PI / 4;
+            const dx = (stroke.size / 2) * Math.cos(angle);
+            const dy = -(stroke.size / 2) * Math.sin(angle);
+
+            if (stroke.points.length === 1) {
+              const x = stroke.points[0].x * canvas.width;
+              const y = stroke.points[0].y * canvas.height;
+              ctx.beginPath();
+              ctx.moveTo(x - dx, y - dy);
+              ctx.lineTo(x + dx, y + dy);
+              ctx.lineWidth = Math.max(2, stroke.size / 2);
+              ctx.stroke();
+              ctx.restore();
+              return;
+            }
+
+            for (let i = 0; i < stroke.points.length - 1; i++) {
+              const p1x = stroke.points[i].x * canvas.width;
+              const p1y = stroke.points[i].y * canvas.height;
+              const p2x = stroke.points[i + 1].x * canvas.width;
+              const p2y = stroke.points[i + 1].y * canvas.height;
+
+              ctx.beginPath();
+              ctx.moveTo(p1x - dx, p1y - dy);
+              ctx.lineTo(p1x + dx, p1y + dy);
+              ctx.lineTo(p2x + dx, p2y + dy);
+              ctx.lineTo(p2x - dx, p2y - dy);
+              ctx.closePath();
+              ctx.fill();
+            }
+            ctx.restore();
+            return;
+          }
+          case 'stylo':
+          default:
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = stroke.size * 1.5;
+            ctx.globalAlpha = 1.0;
+            break;
+        }
+      }
 
       if (stroke.points.length === 1) {
         const pt = stroke.points[0];
         ctx.beginPath();
-        ctx.arc(pt.x * canvas.width, pt.y * canvas.height, (stroke.size * 1.5) / 2, 0, Math.PI * 2);
+        ctx.arc(pt.x * canvas.width, pt.y * canvas.height, (ctx.lineWidth || stroke.size * 1.5) / 2, 0, Math.PI * 2);
         ctx.fillStyle = stroke.type === 'eraser' ? '#FFFFFF' : stroke.color;
         ctx.fill();
         ctx.restore();
@@ -187,6 +262,8 @@ function WhiteboardRoom() {
       <Toolbar
         activeTool={activeTool}
         setActiveTool={setActiveTool}
+        activePenType={activePenType}
+        setActivePenType={setActivePenType}
         currentColor={currentColor}
         setCurrentColor={setCurrentColor}
         brushSize={brushSize}
@@ -207,6 +284,7 @@ function WhiteboardRoom() {
         <WhiteboardCanvas
           strokes={strokes}
           activeTool={activeTool}
+          activePenType={activePenType}
           currentColor={currentColor}
           brushSize={brushSize}
           onStrokeComplete={addStroke}

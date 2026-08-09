@@ -1,3 +1,11 @@
+export type PenType =
+  | 'stylo'
+  | 'crayon'
+  | 'feutre'
+  | 'surligneur'
+  | 'plume'
+  | 'calligraphie';
+
 export type StrokeType = 'pen' | 'eraser';
 
 export interface Point {
@@ -10,6 +18,7 @@ export interface Stroke {
   userId: string;
   userName?: string;
   type: StrokeType;
+  penType?: PenType;
   color: string;
   size: number; // Normalized size or pixel width (e.g., 2 to 50)
   points: Point[];
@@ -25,6 +34,7 @@ export interface UserPresence {
   isDrawing: boolean;
   drawingPoints?: Point[];
   drawingTool?: StrokeType;
+  drawingPenType?: PenType;
   drawingColor?: string;
   drawingSize?: number;
   lastSeen: number;
@@ -40,6 +50,7 @@ export interface RoomInfo {
 
 export interface DrawingTool {
   type: StrokeType;
+  penType?: PenType;
   color: string;
   size: number;
 }

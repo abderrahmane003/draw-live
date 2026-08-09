@@ -1,10 +1,10 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Stroke, Point, UserPresence, StrokeType } from '../types';
-import { Pencil, Eraser } from 'lucide-react';
+import { Stroke, Point, UserPresence, StrokeType, PenType } from '../types';
 
 interface WhiteboardCanvasProps {
   strokes: Stroke[];
   activeTool: StrokeType;
+  activePenType: PenType;
   currentColor: string;
   brushSize: number;
   onStrokeComplete: (stroke: Omit<Stroke, 'id' | 'timestamp'>) => void;
@@ -14,6 +14,7 @@ interface WhiteboardCanvasProps {
     drawingDetails?: {
       points?: Point[];
       tool?: StrokeType;
+      penType?: PenType;
       color?: string;
       size?: number;
     }
@@ -26,6 +27,7 @@ interface WhiteboardCanvasProps {
 export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   strokes,
   activeTool,
+  activePenType,
   currentColor,
   brushSize,
   onStrokeComplete,
@@ -101,6 +103,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       ctx: CanvasRenderingContext2D,
       points: Point[],
       type: StrokeType,
+      penType: PenType | undefined,
       color: string,
       size: number,
       canvasWidth: number,
@@ -109,14 +112,85 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       if (points.length === 0) return;
 
       ctx.save();
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = size;
 
       if (type === 'eraser') {
-        ctx.strokeStyle = '#FFFFFF'; // Clean white eraser on white background
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = size * 1.5;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.globalAlpha = 1.0;
       } else {
         ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+
+        switch (penType) {
+          case 'surligneur':
+            ctx.lineCap = 'square';
+            ctx.lineJoin = 'bevel';
+            ctx.lineWidth = size * 2.2;
+            ctx.globalAlpha = 0.4;
+            break;
+          case 'crayon':
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = Math.max(1, size * 0.9);
+            ctx.globalAlpha = 0.75;
+            break;
+          case 'feutre':
+            ctx.lineCap = 'butt';
+            ctx.lineJoin = 'miter';
+            ctx.lineWidth = size * 1.25;
+            ctx.globalAlpha = 1.0;
+            break;
+          case 'plume':
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = size * 1.1;
+            ctx.globalAlpha = 0.95;
+            break;
+          case 'calligraphie': {
+            ctx.globalAlpha = 0.95;
+            const angle = Math.PI / 4; // 45 degrees
+            const dx = (size / 2) * Math.cos(angle);
+            const dy = -(size / 2) * Math.sin(angle);
+
+            if (points.length === 1) {
+              const x = points[0].x * canvasWidth;
+              const y = points[0].y * canvasHeight;
+              ctx.beginPath();
+              ctx.moveTo(x - dx, y - dy);
+              ctx.lineTo(x + dx, y + dy);
+              ctx.lineWidth = Math.max(2, size / 2);
+              ctx.stroke();
+              ctx.restore();
+              return;
+            }
+
+            for (let i = 0; i < points.length - 1; i++) {
+              const p1x = points[i].x * canvasWidth;
+              const p1y = points[i].y * canvasHeight;
+              const p2x = points[i + 1].x * canvasWidth;
+              const p2y = points[i + 1].y * canvasHeight;
+
+              ctx.beginPath();
+              ctx.moveTo(p1x - dx, p1y - dy);
+              ctx.lineTo(p1x + dx, p1y + dy);
+              ctx.lineTo(p2x + dx, p2y + dy);
+              ctx.lineTo(p2x - dx, p2y - dy);
+              ctx.closePath();
+              ctx.fill();
+            }
+            ctx.restore();
+            return;
+          }
+          case 'stylo':
+          default:
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = size;
+            ctx.globalAlpha = 1.0;
+            break;
+        }
       }
 
       if (points.length === 1) {
@@ -124,7 +198,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         const x = pt.x * canvasWidth;
         const y = pt.y * canvasHeight;
         ctx.beginPath();
-        ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+        ctx.arc(x, y, (ctx.lineWidth || size) / 2, 0, Math.PI * 2);
         ctx.fillStyle = type === 'eraser' ? '#FFFFFF' : color;
         ctx.fill();
         ctx.restore();
@@ -140,7 +214,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
 
       ctx.moveTo(p1.x, p1.y);
 
-      // Smooth curve using quadratic interpolation
       for (let i = 1; i < points.length; i++) {
         const pt = points[i];
         const p2 = {
@@ -157,7 +230,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         p1 = p2;
       }
 
-      // Draw line to final point
       ctx.lineTo(p1.x, p1.y);
       ctx.stroke();
       ctx.restore();
@@ -188,6 +260,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         ctx,
         stroke.points,
         stroke.type,
+        stroke.penType,
         stroke.color,
         stroke.size,
         width,
@@ -196,7 +269,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     });
   }, [strokes, dimensions, drawStrokeOnCtx]);
 
-  // Redraw local and remote active preview strokes while drawing (0ms latency for all users)
+  // Redraw local and remote active preview strokes while drawing
   useEffect(() => {
     const previewCanvas = previewCanvasRef.current;
     if (!previewCanvas) return;
@@ -213,6 +286,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         ctx,
         currentPoints,
         activeTool,
+        activePenType,
         currentColor,
         brushSize,
         width,
@@ -232,6 +306,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
           ctx,
           user.drawingPoints,
           user.drawingTool || 'pen',
+          user.drawingPenType,
           user.drawingColor || user.userColor,
           user.drawingSize || 6,
           width,
@@ -243,6 +318,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     isDrawing,
     currentPoints,
     activeTool,
+    activePenType,
     currentColor,
     brushSize,
     activeUsers,
@@ -286,6 +362,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     onCursorMove(point, true, {
       points: initialPoints,
       tool: activeTool,
+      penType: activePenType,
       color: currentColor,
       size: brushSize,
     });
@@ -301,6 +378,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         onCursorMove(point, true, {
           points: nextPoints,
           tool: activeTool,
+          penType: activePenType,
           color: currentColor,
           size: brushSize,
         });
@@ -318,6 +396,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         onStrokeComplete({
           userId: currentUserId,
           type: activeTool,
+          penType: activePenType,
           color: currentColor,
           size: brushSize,
           points: currentPoints,

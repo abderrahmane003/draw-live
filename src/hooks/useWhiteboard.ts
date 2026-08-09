@@ -82,6 +82,7 @@ export function useWhiteboard(
             userId: data.userId,
             userName: data.userName,
             type: data.type,
+            penType: data.penType,
             color: data.color,
             size: data.size,
             points: data.points || [],
@@ -137,6 +138,7 @@ export function useWhiteboard(
       drawingDetails?: {
         points?: Point[];
         tool?: StrokeType;
+        penType?: string;
         color?: string;
         size?: number;
       }
@@ -163,6 +165,7 @@ export function useWhiteboard(
       if (isDrawing && drawingDetails?.points?.length) {
         payload.drawingPoints = drawingDetails.points;
         payload.drawingTool = drawingDetails.tool || 'pen';
+        payload.drawingPenType = (drawingDetails.penType as any) || 'stylo';
         payload.drawingColor = drawingDetails.color || '#000000';
         payload.drawingSize = drawingDetails.size || 6;
       } else {
