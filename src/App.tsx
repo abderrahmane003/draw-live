@@ -247,7 +247,7 @@ function WhiteboardRoom() {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-white select-none">
-      {/* Top Presence & Room Header */}
+      {/* Top Header Bar matching screenshot */}
       <PresenceBar
         roomId={cleanRoomId}
         activeUsers={activeUsers}
@@ -256,9 +256,12 @@ function WhiteboardRoom() {
         userColor={userColor}
         onUpdateProfile={updateProfile}
         onOpenRoomModal={() => setIsRoomModalOpen(true)}
+        onCopyLink={handleCopyLink}
+        onClear={() => setIsClearModalOpen(true)}
+        onDownload={handleDownloadPNG}
       />
 
-      {/* Main Drawing Tools Header */}
+      {/* Floating Bottom Toolbar */}
       <Toolbar
         activeTool={activeTool}
         setActiveTool={setActiveTool}
