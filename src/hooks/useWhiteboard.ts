@@ -26,7 +26,23 @@ export function useWhiteboard(
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [presences, setPresences] = useState<UserPresence[]>([]);
   const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState<boolean>(() => {
+    return typeof navigator !== 'undefined' ? navigator.onLine : true;
+  });
+
+  // Track browser online / offline state
+  useEffect(() => {
+    const handleOnline = () => setIsConnected(true);
+    const handleOffline = () => setIsConnected(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Undo / Redo history stack for the local user
   const [userUndoStack, setUserUndoStack] = useState<string[]>([]); // Stroke IDs that were undone
