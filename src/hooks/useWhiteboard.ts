@@ -80,9 +80,11 @@ export function useWhiteboard(
     return () => unsubRoom();
   }, [roomId]);
 
+  const isBlocked = roomInfo?.isPrivate === true && !isAuthorized;
+
   // Listen to strokes in real-time
   useEffect(() => {
-    if (!roomId || !isAuthorized) return;
+    if (!roomId || isBlocked) return;
 
     const strokesRef = collection(db, 'rooms', roomId, 'strokes');
     const q = query(strokesRef, orderBy('timestamp', 'asc'));
@@ -105,6 +107,7 @@ export function useWhiteboard(
             points: data.points || [],
             timestamp: data.timestamp || 0,
             deleted: data.deleted || false,
+            ...(data.text ? { text: data.text } : {}),
           });
         });
         setStrokes(strokeList);
@@ -123,11 +126,11 @@ export function useWhiteboard(
     );
 
     return () => unsubStrokes();
-  }, [roomId, userId, isAuthorized]);
+  }, [roomId, userId, isBlocked]);
 
   // Listen to presences in real-time
   useEffect(() => {
-    if (!roomId || !isAuthorized) return;
+    if (!roomId || isBlocked) return;
 
     const presenceRef = collection(db, 'rooms', roomId, 'presence');
 
@@ -145,7 +148,7 @@ export function useWhiteboard(
     });
 
     return () => unsubPresence();
-  }, [roomId, isAuthorized]);
+  }, [roomId, isBlocked]);
 
   // Update current user presence
   const updatePresence = useCallback(
@@ -196,7 +199,7 @@ export function useWhiteboard(
 
   // Heartbeat presence update
   useEffect(() => {
-    if (!roomId || !userId || !isAuthorized) return;
+    if (!roomId || !userId || isBlocked) return;
 
     updatePresence(null, false);
     const interval = setInterval(() => {
@@ -211,7 +214,7 @@ export function useWhiteboard(
         deleteDoc(userPresenceRef).catch(() => {});
       }
     };
-  }, [roomId, userId, isAuthorized, updatePresence]);
+  }, [roomId, userId, isBlocked, updatePresence]);
 
   // Filter valid strokes taking room clearTimestamp into account
   const validStrokes = strokes.filter((s) => {
@@ -239,6 +242,23 @@ export function useWhiteboard(
       deleted: false,
     };
 
+    // Construct clean Firestore payload without undefined values
+    const firestorePayload: Record<string, any> = {
+      id: strokeRef.id,
+      userId: strokeData.userId || '',
+      userName: strokeData.userName || 'Anonyme',
+      type: strokeData.type || 'pen',
+      penType: strokeData.penType || 'stylo',
+      color: strokeData.color || '#000000',
+      size: strokeData.size || 5,
+      points: strokeData.points || [],
+      timestamp,
+      deleted: false,
+    };
+    if (strokeData.text !== undefined) {
+      firestorePayload.text = strokeData.text;
+    }
+
     // Optimistically add to local state immediately so line never disappears
     setStrokes((prev) => {
       if (prev.some((s) => s.id === newStroke.id)) return prev;
@@ -246,7 +266,7 @@ export function useWhiteboard(
     });
 
     try {
-      await setDoc(strokeRef, newStroke);
+      await setDoc(strokeRef, firestorePayload);
       const roomRef = doc(db, 'rooms', roomId);
       updateDoc(roomRef, { lastModified: timestamp }).catch(() => {});
     } catch (err) {
