@@ -210,7 +210,7 @@ export function useWhiteboard(
     return () => unsubPresence();
   }, [roomId, isBlocked]);
 
-  // Update current user presence (Fast sync when drawing, throttled when moving)
+  // Update current user presence (Heartbeat rate to conserve Firestore write quota)
   const updatePresence = useCallback(
     (
       cursor: Point | null,
@@ -226,9 +226,8 @@ export function useWhiteboard(
       if (!roomId || !userId) return;
 
       const now = Date.now();
-      // Throttle: 100ms when drawing for live line preview, 250ms when moving cursor
-      const minInterval = isDrawing ? 100 : 250;
-      if (now - lastPresenceUpdateRef.current < minInterval) {
+      // Throttle presence updates to max once every 15000ms (15s) to avoid burning Firestore write quota
+      if (now - lastPresenceUpdateRef.current < 15000) {
         return;
       }
       lastPresenceUpdateRef.current = now;
@@ -242,16 +241,6 @@ export function useWhiteboard(
         isDrawing,
         lastSeen: now,
       };
-
-      if (isDrawing && drawingDetails?.points?.length) {
-        payload.drawingPoints = drawingDetails.points.slice(-15); // Send last 15 points for smooth live preview
-        payload.drawingTool = drawingDetails.tool || 'pen';
-        payload.drawingPenType = (drawingDetails.penType as any) || 'stylo';
-        payload.drawingColor = drawingDetails.color || '#000000';
-        payload.drawingSize = drawingDetails.size || 6;
-      } else {
-        payload.drawingPoints = [];
-      }
 
       setDoc(userPresenceRef, payload, { merge: true }).catch(() => {});
     },
@@ -341,8 +330,6 @@ export function useWhiteboard(
     try {
       console.log(`[Firestore] Stroke WRITE START - room: ${roomId}, strokeId: ${strokeRef.id}`);
       await setDoc(strokeRef, firestorePayload);
-      const roomRef = doc(db, 'rooms', roomId);
-      updateDoc(roomRef, { lastModified: timestamp }).catch(() => {});
       console.log(`[Firestore] Stroke WRITE SUCCESS - strokeId: ${strokeRef.id}`);
       setIsConnected(true);
     } catch (err) {
