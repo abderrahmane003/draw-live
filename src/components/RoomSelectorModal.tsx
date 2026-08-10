@@ -3,6 +3,7 @@ import { Sparkles, ArrowRight, X, Layers, Globe, Clock, Check, Lock } from 'luci
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { RoomInfo } from '../types';
+import { getCachedRooms, saveCachedRooms } from '../lib/roomStorage';
 import { RoomContextMenu } from './RoomContextMenu';
 import { CreateRoomModal } from './CreateRoomModal';
 import { DeleteRoomModal } from './DeleteRoomModal';
@@ -47,12 +48,18 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    setLoadingRooms(true);
+    const cached = getCachedRooms();
+    if (cached.length > 0) {
+      setOpenRooms(cached);
+      setLoadingRooms(false);
+    } else {
+      setLoadingRooms(true);
+    }
+
     const roomsRef = collection(db, 'rooms');
-    const q = query(roomsRef, orderBy('lastModified', 'desc'), limit(12));
 
     const unsub = onSnapshot(
-      q,
+      roomsRef,
       (snapshot) => {
         const rooms: RoomInfo[] = [];
         snapshot.forEach((docSnap) => {
@@ -61,17 +68,28 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
             id: docSnap.id,
             name: data.name || `Tableau #${docSnap.id}`,
             createdAt: data.createdAt || Date.now(),
-            lastModified: data.lastModified || Date.now(),
+            lastModified: data.lastModified || data.createdAt || Date.now(),
             clearTimestamp: data.clearTimestamp || 0,
             isPrivate: data.isPrivate || false,
             password: data.password || undefined,
           });
         });
-        setOpenRooms(rooms);
+
+        const cached = getCachedRooms();
+        const roomMap = new Map<string, RoomInfo>();
+        cached.forEach((r) => roomMap.set(r.id, r));
+        rooms.forEach((r) => roomMap.set(r.id, r));
+
+        const merged = Array.from(roomMap.values());
+        merged.sort((a, b) => (b.lastModified || b.createdAt || 0) - (a.lastModified || a.createdAt || 0));
+
+        saveCachedRooms(merged);
+        setOpenRooms(merged);
         setLoadingRooms(false);
       },
       (err) => {
-        console.error('Error fetching open rooms:', err);
+        console.warn('Error fetching open rooms (using cached):', err);
+        setOpenRooms(getCachedRooms());
         setLoadingRooms(false);
       }
     );

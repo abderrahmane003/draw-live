@@ -268,7 +268,7 @@ function WhiteboardRoom() {
       isAuthorized={isAuthorized}
       onAuthorize={handleAuthorize}
     >
-      <div className="h-screen w-screen flex flex-col overflow-hidden bg-white select-none">
+      <div className="fixed inset-0 h-full w-full flex flex-col overflow-hidden bg-white select-none touch-none overscroll-none">
         {/* Top Header Bar matching screenshot */}
         <PresenceBar
           roomId={cleanRoomId}
