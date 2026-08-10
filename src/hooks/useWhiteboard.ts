@@ -9,6 +9,7 @@ import {
   orderBy,
   where,
   getDoc,
+  getDocFromServer,
   deleteDoc,
   writeBatch,
   serverTimestamp,
@@ -29,10 +30,41 @@ export function useWhiteboard(
   const [isConnected, setIsConnected] = useState<boolean>(() => {
     return typeof navigator !== 'undefined' ? navigator.onLine : true;
   });
+  const [retryTrigger, setRetryTrigger] = useState<number>(0);
+
+  const retryConnection = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setIsConnected(false);
+      return;
+    }
+    try {
+      if (roomId) {
+        const roomRef = doc(db, 'rooms', roomId);
+        await getDocFromServer(roomRef);
+        setIsConnected(true);
+      }
+    } catch (err) {
+      console.warn('Firestore server ping check:', err);
+      // Trigger snapshot listener re-subscription
+      setRetryTrigger((prev) => prev + 1);
+    }
+  }, [roomId]);
+
+  // Periodic auto-retry ping when offline
+  useEffect(() => {
+    if (isConnected) return;
+    const interval = setInterval(() => {
+      retryConnection();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isConnected, retryConnection]);
 
   // Track browser online / offline state
   useEffect(() => {
-    const handleOnline = () => setIsConnected(true);
+    const handleOnline = () => {
+      setIsConnected(true);
+      retryConnection();
+    };
     const handleOffline = () => setIsConnected(false);
 
     window.addEventListener('online', handleOnline);
@@ -42,7 +74,7 @@ export function useWhiteboard(
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [retryConnection]);
 
   // Undo / Redo history stack for the local user
   const [userUndoStack, setUserUndoStack] = useState<string[]>([]); // Stroke IDs that were undone
@@ -68,17 +100,26 @@ export function useWhiteboard(
           console.error('Error creating room doc:', err)
         );
       }
+    }).catch((err) => {
+      console.warn('Error reading room doc:', err);
     });
 
     // Listen to Room metadata
-    const unsubRoom = onSnapshot(roomRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setRoomInfo(snapshot.data() as RoomInfo);
+    const unsubRoom = onSnapshot(
+      roomRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setRoomInfo(snapshot.data() as RoomInfo);
+          setIsConnected(true);
+        }
+      },
+      (error) => {
+        console.warn('Room snapshot warning:', error);
       }
-    });
+    );
 
     return () => unsubRoom();
-  }, [roomId]);
+  }, [roomId, retryTrigger]);
 
   const isBlocked = roomInfo?.isPrivate === true && !isAuthorized;
 
@@ -126,7 +167,7 @@ export function useWhiteboard(
     );
 
     return () => unsubStrokes();
-  }, [roomId, userId, isBlocked]);
+  }, [roomId, userId, isBlocked, retryTrigger]);
 
   // Listen to presences in real-time
   useEffect(() => {
@@ -134,21 +175,27 @@ export function useWhiteboard(
 
     const presenceRef = collection(db, 'rooms', roomId, 'presence');
 
-    const unsubPresence = onSnapshot(presenceRef, (snapshot) => {
-      const now = Date.now();
-      const list: UserPresence[] = [];
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data() as UserPresence;
-        // Filter out users inactive for > 20 seconds
-        if (now - (data.lastSeen || 0) < 20000) {
-          list.push(data);
-        }
-      });
-      setPresences(list);
-    });
+    const unsubPresence = onSnapshot(
+      presenceRef,
+      (snapshot) => {
+        const now = Date.now();
+        const list: UserPresence[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as UserPresence;
+          // Filter out users inactive for > 20 seconds
+          if (now - (data.lastSeen || 0) < 20000) {
+            list.push(data);
+          }
+        });
+        setPresences(list);
+      },
+      (error) => {
+        console.warn('Presence snapshot warning:', error);
+      }
+    );
 
     return () => unsubPresence();
-  }, [roomId, isBlocked]);
+  }, [roomId, isBlocked, retryTrigger]);
 
   // Update current user presence
   const updatePresence = useCallback(
@@ -331,5 +378,6 @@ export function useWhiteboard(
     canRedo: userUndoStack.length > 0,
     roomInfo,
     isConnected,
+    retryConnection,
   };
 }

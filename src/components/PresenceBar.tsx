@@ -27,6 +27,7 @@ interface PresenceBarProps {
   onCopyLink: () => void;
   onClear: () => void;
   onDownload: () => void;
+  onRetryConnection?: () => void;
 }
 
 const AVATAR_COLORS = [
@@ -53,6 +54,7 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
   onCopyLink,
   onClear,
   onDownload,
+  onRetryConnection,
 }) => {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
@@ -195,7 +197,11 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
       {/* Right Items: Profile edit button, Trash Clear button, Green Download button */}
       <div className="flex items-center gap-1.5 sm:gap-2">
         {/* Connection status indicator */}
-        <div className="flex items-center gap-1 px-2 py-1 sm:px-2.5 rounded-xl bg-white border-2 border-slate-900 text-[10px] sm:text-[11px] text-slate-900 font-black shadow-xs">
+        <button
+          onClick={onRetryConnection}
+          className="flex items-center gap-1 px-2 py-1 sm:px-2.5 rounded-xl bg-white border-2 border-slate-900 text-[10px] sm:text-[11px] text-slate-900 font-black shadow-xs hover:bg-slate-50 transition-colors cursor-pointer"
+          title={isConnected ? "Connecté à la base de données" : "Hors ligne - Cliquer pour reconnecter"}
+        >
           {isConnected ? (
             <>
               <Wifi className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
@@ -209,7 +215,7 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
               <span className="sm:hidden">⚠️</span>
             </>
           )}
-        </div>
+        </button>
 
         {/* User Profile Editor Pill */}
         <div className="relative" ref={profileRef}>

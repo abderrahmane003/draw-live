@@ -59,6 +59,7 @@ function WhiteboardRoom() {
     canRedo,
     isConnected,
     roomInfo,
+    retryConnection,
   } = useWhiteboard(cleanRoomId, userId, userName, userColor, isAuthorized);
 
   const showToast = (msg: string) => {
@@ -281,6 +282,7 @@ function WhiteboardRoom() {
           onCopyLink={handleCopyLink}
           onClear={() => setIsClearModalOpen(true)}
           onDownload={handleDownloadPNG}
+          onRetryConnection={retryConnection}
         />
 
         {/* Floating Bottom Toolbar */}
