@@ -5,8 +5,13 @@ import {
   setDoc,
   updateDoc,
   onSnapshot,
+  query,
+  orderBy,
+  where,
   getDoc,
   deleteDoc,
+  writeBatch,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Stroke, StrokeType, UserPresence, RoomInfo, Point } from '../types';
@@ -21,42 +26,7 @@ export function useWhiteboard(
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [presences, setPresences] = useState<UserPresence[]>([]);
   const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean>(() => {
-    return typeof navigator !== 'undefined' ? navigator.onLine : true;
-  });
-
-  const retryConnection = useCallback(async () => {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setIsConnected(false);
-      return;
-    }
-    try {
-      if (roomId) {
-        const roomRef = doc(db, 'rooms', roomId);
-        await getDoc(roomRef);
-        setIsConnected(true);
-      }
-    } catch (err) {
-      console.warn('Firestore ping check:', err);
-    }
-  }, [roomId]);
-
-  // Track browser online / offline state
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsConnected(true);
-      retryConnection();
-    };
-    const handleOffline = () => setIsConnected(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [retryConnection]);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
 
   // Undo / Redo history stack for the local user
   const [userUndoStack, setUserUndoStack] = useState<string[]>([]); // Stroke IDs that were undone
@@ -69,53 +39,40 @@ export function useWhiteboard(
     if (!roomId) return;
 
     const roomRef = doc(db, 'rooms', roomId);
-    getDoc(roomRef)
-      .then((snapshot) => {
-        if (!snapshot.exists()) {
-          const newRoom: RoomInfo = {
-            id: roomId,
-            createdAt: Date.now(),
-            lastModified: Date.now(),
-            clearTimestamp: 0,
-            name: `Tableau #${roomId}`,
-            isPrivate: false,
-          };
-          setDoc(roomRef, newRoom, { merge: true }).catch((err) =>
-            console.error('Error creating room doc:', err)
-          );
-        }
-      })
-      .catch((err) => {
-        console.warn('Error reading room doc:', err);
-      });
+    getDoc(roomRef).then((snapshot) => {
+      if (!snapshot.exists()) {
+        const newRoom = {
+          id: roomId,
+          createdAt: Date.now(),
+          lastModified: Date.now(),
+          clearTimestamp: 0,
+          name: `Tableau #${roomId}`,
+        };
+        setDoc(roomRef, newRoom).catch((err) =>
+          console.error('Error creating room doc:', err)
+        );
+      }
+    });
 
     // Listen to Room metadata
-    const unsubRoom = onSnapshot(
-      roomRef,
-      (snapshot) => {
-        if (snapshot.exists()) {
-          setRoomInfo(snapshot.data() as RoomInfo);
-          setIsConnected(true);
-        }
-      },
-      (error) => {
-        console.warn('Room snapshot warning:', error);
+    const unsubRoom = onSnapshot(roomRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setRoomInfo(snapshot.data() as RoomInfo);
       }
-    );
+    });
 
     return () => unsubRoom();
   }, [roomId]);
 
-  const isBlocked = roomInfo?.isPrivate === true && !isAuthorized;
-
   // Listen to strokes in real-time
   useEffect(() => {
-    if (!roomId || isBlocked) return;
+    if (!roomId || !isAuthorized) return;
 
     const strokesRef = collection(db, 'rooms', roomId, 'strokes');
+    const q = query(strokesRef, orderBy('timestamp', 'asc'));
 
     const unsubStrokes = onSnapshot(
-      strokesRef,
+      q,
       (snapshot) => {
         setIsConnected(true);
         const strokeList: Stroke[] = [];
@@ -132,11 +89,8 @@ export function useWhiteboard(
             points: data.points || [],
             timestamp: data.timestamp || 0,
             deleted: data.deleted || false,
-            ...(data.text ? { text: data.text } : {}),
           });
         });
-        // Sort ascending by timestamp in memory
-        strokeList.sort((a, b) => a.timestamp - b.timestamp);
         setStrokes(strokeList);
 
         if (userId) {
@@ -153,50 +107,29 @@ export function useWhiteboard(
     );
 
     return () => unsubStrokes();
-  }, [roomId, userId, isBlocked]);
+  }, [roomId, userId, isAuthorized]);
 
   // Listen to presences in real-time
   useEffect(() => {
-    if (!roomId || isBlocked) return;
+    if (!roomId || !isAuthorized) return;
 
     const presenceRef = collection(db, 'rooms', roomId, 'presence');
 
-    const unsubPresence = onSnapshot(
-      presenceRef,
-      (snapshot) => {
-        const now = Date.now();
-        const list: UserPresence[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          // Filter out users inactive for > 20 seconds
-          if (now - (data.lastSeen || 0) < 20000) {
-            list.push({
-              userId: data.userId,
-              userName: data.userName || 'Anonyme',
-              userColor: data.userColor || '#EC4899',
-              cursor: data.cursor || null,
-              isDrawing: !!data.isDrawing,
-              drawingPoints: data.drawingPoints || undefined,
-              drawingTool: data.drawingTool || undefined,
-              drawingPenType: data.drawingPenType || undefined,
-              drawingColor: data.drawingColor || undefined,
-              drawingSize: data.drawingSize || undefined,
-              lastSeen: data.lastSeen || 0,
-            });
-          }
-        });
-        setPresences(list);
-      },
-      (error) => {
-        console.warn('Presence snapshot warning:', error);
-      }
-    );
+    const unsubPresence = onSnapshot(presenceRef, (snapshot) => {
+      const now = Date.now();
+      const list: UserPresence[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() as UserPresence;
+        // Filter out users inactive for > 20 seconds
+        if (now - (data.lastSeen || 0) < 20000) {
+          list.push(data);
+        }
+      });
+      setPresences(list);
+    });
 
     return () => unsubPresence();
-  }, [roomId, isBlocked]);
-
-  // Track previous drawing status to detect drawing end transition
-  const wasDrawingRef = useRef<boolean>(false);
+  }, [roomId, isAuthorized]);
 
   // Update current user presence
   const updatePresence = useCallback(
@@ -214,18 +147,14 @@ export function useWhiteboard(
       if (!roomId || !userId) return;
 
       const now = Date.now();
-      const isDrawingEnded = wasDrawingRef.current && !isDrawing;
-      wasDrawingRef.current = isDrawing;
-
-      // Throttle setDoc writes to max 1 write per 80ms while moving or drawing,
-      // but send immediately when drawing ends to clear live preview cleanly.
-      if (!isDrawingEnded && now - lastPresenceUpdateRef.current < 80) {
+      // Throttle presence updates to max once per 30ms unless drawing
+      if (now - lastPresenceUpdateRef.current < 30 && cursor !== null && !isDrawing) {
         return;
       }
       lastPresenceUpdateRef.current = now;
 
       const userPresenceRef = doc(db, 'rooms', roomId, 'presence', userId);
-      const payload: Record<string, any> = {
+      const payload: Partial<UserPresence> = {
         userId,
         userName,
         userColor,
@@ -237,15 +166,11 @@ export function useWhiteboard(
       if (isDrawing && drawingDetails?.points?.length) {
         payload.drawingPoints = drawingDetails.points;
         payload.drawingTool = drawingDetails.tool || 'pen';
-        payload.drawingPenType = drawingDetails.penType || 'stylo';
-        payload.drawingColor = drawingDetails.color || userColor;
-        payload.drawingSize = drawingDetails.size || 5;
+        payload.drawingPenType = (drawingDetails.penType as any) || 'stylo';
+        payload.drawingColor = drawingDetails.color || '#000000';
+        payload.drawingSize = drawingDetails.size || 6;
       } else {
         payload.drawingPoints = [];
-        payload.drawingTool = null;
-        payload.drawingPenType = null;
-        payload.drawingColor = null;
-        payload.drawingSize = null;
       }
 
       setDoc(userPresenceRef, payload, { merge: true }).catch(() => {});
@@ -255,7 +180,7 @@ export function useWhiteboard(
 
   // Heartbeat presence update
   useEffect(() => {
-    if (!roomId || !userId || isBlocked) return;
+    if (!roomId || !userId || !isAuthorized) return;
 
     updatePresence(null, false);
     const interval = setInterval(() => {
@@ -270,7 +195,7 @@ export function useWhiteboard(
         deleteDoc(userPresenceRef).catch(() => {});
       }
     };
-  }, [roomId, userId, isBlocked, updatePresence]);
+  }, [roomId, userId, isAuthorized, updatePresence]);
 
   // Filter valid strokes taking room clearTimestamp into account
   const validStrokes = strokes.filter((s) => {
@@ -298,23 +223,6 @@ export function useWhiteboard(
       deleted: false,
     };
 
-    // Construct clean Firestore payload without undefined values
-    const firestorePayload: Record<string, any> = {
-      id: strokeRef.id,
-      userId: strokeData.userId || userId || 'anon',
-      userName: strokeData.userName || userName || 'Anonyme',
-      type: strokeData.type || 'pen',
-      penType: strokeData.penType || 'stylo',
-      color: strokeData.color || '#000000',
-      size: strokeData.size || 5,
-      points: strokeData.points || [],
-      timestamp,
-      deleted: false,
-    };
-    if (strokeData.text !== undefined) {
-      firestorePayload.text = strokeData.text;
-    }
-
     // Optimistically add to local state immediately so line never disappears
     setStrokes((prev) => {
       if (prev.some((s) => s.id === newStroke.id)) return prev;
@@ -322,7 +230,7 @@ export function useWhiteboard(
     });
 
     try {
-      await setDoc(strokeRef, firestorePayload);
+      await setDoc(strokeRef, newStroke);
       const roomRef = doc(db, 'rooms', roomId);
       updateDoc(roomRef, { lastModified: timestamp }).catch(() => {});
     } catch (err) {
@@ -387,7 +295,5 @@ export function useWhiteboard(
     canRedo: userUndoStack.length > 0,
     roomInfo,
     isConnected,
-    retryConnection,
   };
 }
-

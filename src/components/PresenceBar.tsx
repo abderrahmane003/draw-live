@@ -27,7 +27,6 @@ interface PresenceBarProps {
   onCopyLink: () => void;
   onClear: () => void;
   onDownload: () => void;
-  onRetryConnection?: () => void;
 }
 
 const AVATAR_COLORS = [
@@ -54,7 +53,6 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
   onCopyLink,
   onClear,
   onDownload,
-  onRetryConnection,
 }) => {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
@@ -100,7 +98,7 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
         <button
           onClick={() => navigate('/')}
           className="w-8 h-8 sm:w-9 sm:h-9 bg-emerald-400 hover:bg-emerald-300 border-2 border-slate-900 rounded-xl flex items-center justify-center text-slate-950 font-black shrink-0 cartoon-shadow cartoon-btn cursor-pointer"
-          title="Accueil Draw live"
+          title="Accueil Flowboard"
         >
           <Diamond className="w-4 h-4 fill-current stroke-[2.5]" />
         </button>
@@ -196,26 +194,20 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
 
       {/* Right Items: Profile edit button, Trash Clear button, Green Download button */}
       <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Connection status indicator */}
-        <button
-          onClick={onRetryConnection}
-          className="flex items-center gap-1 px-2 py-1 sm:px-2.5 rounded-xl bg-white border-2 border-slate-900 text-[10px] sm:text-[11px] text-slate-900 font-black shadow-xs hover:bg-slate-50 transition-colors cursor-pointer"
-          title={isConnected ? "Connecté à la base de données" : "Hors ligne - Cliquer pour reconnecter"}
-        >
+        {/* Connection status indicator on desktop */}
+        <div className="hidden lg:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white border-2 border-slate-900 text-[11px] text-slate-900 font-black shadow-xs">
           {isConnected ? (
             <>
               <Wifi className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
-              <span className="hidden sm:inline">En ligne ⚡</span>
-              <span className="sm:hidden">⚡</span>
+              <span>Synchro ⚡</span>
             </>
           ) : (
             <>
-              <WifiOff className="w-3.5 h-3.5 text-rose-500 animate-pulse stroke-[3]" />
-              <span className="hidden sm:inline">Hors ligne</span>
-              <span className="sm:hidden">⚠️</span>
+              <WifiOff className="w-3.5 h-3.5 text-orange-500 animate-pulse stroke-[3]" />
+              <span>Reconnexion...</span>
             </>
           )}
-        </button>
+        </div>
 
         {/* User Profile Editor Pill */}
         <div className="relative" ref={profileRef}>

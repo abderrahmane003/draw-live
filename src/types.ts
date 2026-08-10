@@ -24,7 +24,6 @@ export interface Stroke {
   points: Point[];
   timestamp: number;
   deleted?: boolean;
-  text?: string;
 }
 
 export interface UserPresence {

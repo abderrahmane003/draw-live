@@ -59,7 +59,6 @@ function WhiteboardRoom() {
     canRedo,
     isConnected,
     roomInfo,
-    retryConnection,
   } = useWhiteboard(cleanRoomId, userId, userName, userColor, isAuthorized);
 
   const showToast = (msg: string) => {
@@ -269,7 +268,7 @@ function WhiteboardRoom() {
       isAuthorized={isAuthorized}
       onAuthorize={handleAuthorize}
     >
-      <div className="fixed inset-0 h-full w-full flex flex-col overflow-hidden bg-white select-none touch-none overscroll-none">
+      <div className="h-screen w-screen flex flex-col overflow-hidden bg-white select-none">
         {/* Top Header Bar matching screenshot */}
         <PresenceBar
           roomId={cleanRoomId}
@@ -282,7 +281,6 @@ function WhiteboardRoom() {
           onCopyLink={handleCopyLink}
           onClear={() => setIsClearModalOpen(true)}
           onDownload={handleDownloadPNG}
-          onRetryConnection={retryConnection}
         />
 
         {/* Floating Bottom Toolbar */}

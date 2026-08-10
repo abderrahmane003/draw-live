@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -20,9 +20,6 @@ import {
   Smile,
   Wand2,
   Lock,
-  Briefcase,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { RoomContextMenu } from './RoomContextMenu';
@@ -46,33 +43,6 @@ const CARD_COLORS = [
 export function HomePage() {
   const navigate = useNavigate();
   const { userName, userColor, updateProfile } = useAuth();
-
-  const roomsSectionRef = useRef<HTMLDivElement>(null);
-  const [isScrolledDown, setIsScrolledDown] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 200) {
-        setIsScrolledDown(true);
-      } else {
-        setIsScrolledDown(false);
-      }
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const scrollToRooms = () => {
-    if (roomsSectionRef.current) {
-      roomsSectionRef.current.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      window.scrollTo({ top: 350, behavior: 'smooth' });
-    }
-  };
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   const [inputRoomCode, setInputRoomCode] = useState('');
   const [rooms, setRooms] = useState<RoomWithPresence[]>([]);
@@ -103,9 +73,10 @@ export function HomePage() {
   // Subscribe to rooms in Firestore
   useEffect(() => {
     const roomsRef = collection(db, 'rooms');
+    const q = query(roomsRef, orderBy('lastModified', 'desc'), limit(30));
 
     const unsubRooms = onSnapshot(
-      roomsRef,
+      q,
       (snapshot) => {
         const fetchedRooms: RoomInfo[] = [];
         snapshot.forEach((docSnap) => {
@@ -114,26 +85,43 @@ export function HomePage() {
             id: docSnap.id,
             name: data.name || `Tableau #${docSnap.id}`,
             createdAt: data.createdAt || Date.now(),
-            lastModified: data.lastModified || data.createdAt || Date.now(),
+            lastModified: data.lastModified || Date.now(),
             clearTimestamp: data.clearTimestamp || 0,
-            isPrivate: !!data.isPrivate,
+            isPrivate: data.isPrivate || false,
             password: data.password || undefined,
           });
         });
 
-        // Sort in memory by lastModified descending
-        fetchedRooms.sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+        if (fetchedRooms.length === 0) {
+          setRooms([]);
+          setLoading(false);
+          return;
+        }
 
-        // Limit to 30 rooms
-        const topRooms = fetchedRooms.slice(0, 30);
+        const roomPresenceMap: Record<string, number> = {};
 
-        setRooms(
-          topRooms.map((r) => ({
-            ...r,
-            activeUsersCount: 0,
-          }))
-        );
-        setLoading(false);
+        fetchedRooms.forEach((room) => {
+          const presenceRef = collection(db, 'rooms', room.id, 'presence');
+          onSnapshot(presenceRef, (presenceSnap) => {
+            const now = Date.now();
+            let count = 0;
+            presenceSnap.forEach((pDoc) => {
+              const pData = pDoc.data();
+              if (now - (pData.lastSeen || 0) < 25000) {
+                count++;
+              }
+            });
+            roomPresenceMap[room.id] = count;
+
+            setRooms(
+              fetchedRooms.map((r) => ({
+                ...r,
+                activeUsersCount: roomPresenceMap[r.id] || 0,
+              }))
+            );
+            setLoading(false);
+          });
+        });
       },
       (err) => {
         console.error('Error fetching rooms:', err);
@@ -201,7 +189,7 @@ export function HomePage() {
           </div>
           <div>
             <h1 className="font-extrabold text-slate-900 text-xl sm:text-2xl tracking-wide flex items-center gap-2">
-              Draw live ✨
+              Flowboard ✨
             </h1>
             <p className="text-xs font-bold text-slate-800">
               Le tableau blanc rigolo & magique !
@@ -271,7 +259,7 @@ export function HomePage() {
             <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <button
                 onClick={handleCreateNewRoom}
-                className="px-6 py-4 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-extrabold text-base transition-all border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-3 shrink-0"
+                className="px-6 py-4 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-extrabold text-base transition-all border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-3"
               >
                 <Plus className="w-6 h-6 stroke-[3]" />
                 <span>Nouveau Tableau Blanc 🚀</span>
@@ -295,24 +283,12 @@ export function HomePage() {
                   <ArrowRight className="w-5 h-5 stroke-[3]" />
                 </button>
               </form>
-
-              {/* Briefcase Scroll Button to Jump Down */}
-              <button
-                type="button"
-                onClick={scrollToRooms}
-                className="px-4 py-3.5 rounded-2xl bg-amber-300 hover:bg-amber-200 text-slate-900 font-black text-xs sm:text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-2 shrink-0 cursor-pointer"
-                title="Descendre aux tableaux"
-              >
-                <Briefcase className="w-5 h-5 text-slate-900 stroke-[2.5]" />
-                <span className="hidden lg:inline">Voir tableaux 💼</span>
-                <ChevronDown className="w-4 h-4 stroke-[3] animate-bounce text-slate-900" />
-              </button>
             </div>
           </div>
         </div>
 
         {/* Rooms Listing Section */}
-        <div ref={roomsSectionRef} className="space-y-6 pt-2">
+        <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-4 border-slate-900 pb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-yellow-300 border-2 border-slate-900 flex items-center justify-center text-slate-900 font-extrabold cartoon-shadow">
@@ -462,40 +438,6 @@ export function HomePage() {
         onClose={() => setDeletingRoomId(null)}
         onSuccess={() => showToast('Room supprimée avec succès.')}
       />
-
-      {/* Floating Briefcase Scroll Button */}
-      <div className="fixed bottom-6 right-6 z-40 animate-in fade-in zoom-in-95 duration-200">
-        <button
-          type="button"
-          onClick={isScrolledDown ? scrollToTop : scrollToRooms}
-          className="group bg-yellow-300 hover:bg-yellow-200 text-slate-900 border-3 border-slate-900 rounded-2xl p-2.5 sm:p-3.5 cartoon-shadow-lg cartoon-btn flex items-center gap-3 font-black text-xs sm:text-sm shadow-2xl cursor-pointer"
-          title={isScrolledDown ? 'Remonter en haut' : 'Descendre dans la page 💼'}
-        >
-          <div className="w-10 h-10 rounded-xl bg-pink-500 border-2 border-slate-900 text-white flex items-center justify-center shrink-0 cartoon-shadow">
-            <Briefcase className="w-5 h-5 stroke-[2.5]" />
-          </div>
-          <div className="text-left hidden sm:block">
-            <div className="text-[10px] uppercase tracking-wider font-extrabold text-slate-700">
-              {isScrolledDown ? 'Naviguer' : 'Mallette magique'}
-            </div>
-            <div className="text-xs font-black flex items-center gap-1">
-              <span>{isScrolledDown ? 'Remonter en haut' : 'Descendre la page'}</span>
-              {isScrolledDown ? (
-                <ChevronUp className="w-4 h-4 stroke-[3]" />
-              ) : (
-                <ChevronDown className="w-4 h-4 stroke-[3] animate-bounce text-pink-600" />
-              )}
-            </div>
-          </div>
-          <div className="sm:hidden">
-            {isScrolledDown ? (
-              <ChevronUp className="w-5 h-5 stroke-[3]" />
-            ) : (
-              <ChevronDown className="w-5 h-5 stroke-[3] animate-bounce text-pink-600" />
-            )}
-          </div>
-        </button>
-      </div>
 
       <Toast message={toastMessage} />
     </div>

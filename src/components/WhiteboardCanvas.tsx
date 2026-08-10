@@ -352,7 +352,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   };
 
   // Start Drawing
-  const handleStart = useCallback((clientX: number, clientY: number) => {
+  const handleStart = (clientX: number, clientY: number) => {
     const point = getCanvasPoint(clientX, clientY);
     if (!point) return;
 
@@ -366,10 +366,10 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       color: currentColor,
       size: brushSize,
     });
-  }, [activeTool, activePenType, currentColor, brushSize, onCursorMove]);
+  };
 
   // Move Drawing
-  const handleMove = useCallback((clientX: number, clientY: number) => {
+  const handleMove = (clientX: number, clientY: number) => {
     const point = getCanvasPoint(clientX, clientY);
 
     if (isDrawing && point) {
@@ -387,14 +387,14 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     } else {
       onCursorMove(point, false);
     }
-  }, [isDrawing, activeTool, activePenType, currentColor, brushSize, onCursorMove]);
+  };
 
   // End Drawing
-  const handleEnd = useCallback(() => {
+  const handleEnd = () => {
     if (isDrawing) {
-      if (currentPoints.length > 0) {
+      if (currentPoints.length > 0 && currentUserId) {
         onStrokeComplete({
-          userId: currentUserId || 'anon',
+          userId: currentUserId,
           type: activeTool,
           penType: activePenType,
           color: currentColor,
@@ -406,54 +406,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       setCurrentPoints([]);
       onCursorMove(null, false);
     }
-  }, [isDrawing, currentPoints, currentUserId, activeTool, activePenType, currentColor, brushSize, onStrokeComplete, onCursorMove]);
-
-  // Store fresh handlers in refs for native non-passive listeners
-  const handleStartRef = useRef(handleStart);
-  handleStartRef.current = handleStart;
-  const handleMoveRef = useRef(handleMove);
-  handleMoveRef.current = handleMove;
-  const handleEndRef = useRef(handleEnd);
-  handleEndRef.current = handleEnd;
-
-  // Attach non-passive touch event listeners directly to prevent mobile browser scrolling/bouncing while drawing
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        if (e.cancelable) e.preventDefault();
-        const touch = e.touches[0];
-        handleStartRef.current(touch.clientX, touch.clientY);
-      }
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        if (e.cancelable) e.preventDefault();
-        const touch = e.touches[0];
-        handleMoveRef.current(touch.clientX, touch.clientY);
-      }
-    };
-
-    const onTouchEnd = (e: TouchEvent) => {
-      if (e.cancelable) e.preventDefault();
-      handleEndRef.current();
-    };
-
-    container.addEventListener('touchstart', onTouchStart, { passive: false });
-    container.addEventListener('touchmove', onTouchMove, { passive: false });
-    container.addEventListener('touchend', onTouchEnd, { passive: false });
-    container.addEventListener('touchcancel', onTouchEnd, { passive: false });
-
-    return () => {
-      container.removeEventListener('touchstart', onTouchStart);
-      container.removeEventListener('touchmove', onTouchMove);
-      container.removeEventListener('touchend', onTouchEnd);
-      container.removeEventListener('touchcancel', onTouchEnd);
-    };
-  }, []);
+  };
 
   // Mouse Handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -474,6 +427,25 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     onCursorMove(null, false);
   };
 
+  // Touch Handlers for Mobile & Tablet
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      handleStart(touch.clientX, touch.clientY);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      handleMove(touch.clientX, touch.clientY);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    handleEnd();
+  };
+
   // Filter other active users (excluding current user)
   const otherUsers = activeUsers.filter(
     (u) => u.userId !== currentUserId && u.cursor !== null
@@ -482,13 +454,17 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full overflow-hidden select-none bg-slate-50 cursor-crosshair touch-none overscroll-none ${
+      className={`relative w-full h-full overflow-hidden select-none bg-slate-50 cursor-crosshair ${
         showGrid ? 'bg-grid-pattern' : ''
       }`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       {/* Background Main Canvas */}
       <canvas
