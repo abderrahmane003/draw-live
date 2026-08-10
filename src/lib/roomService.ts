@@ -51,15 +51,16 @@ export async function createRoomInFirestore(
   options?: { isPrivate?: boolean; password?: string; name?: string }
 ): Promise<void> {
   const roomRef = doc(db, 'rooms', roomId);
+  const now = Date.now();
   const roomData = {
     id: roomId,
     name: options?.name || `Tableau #${roomId}`,
-    createdAt: Date.now(),
-    lastModified: Date.now(),
+    createdAt: now,
+    lastModified: now,
     clearTimestamp: 0,
     isPrivate: !!options?.isPrivate,
     ...(options?.isPrivate && options?.password ? { password: options.password } : {}),
   };
 
-  await setDoc(roomRef, roomData);
+  await setDoc(roomRef, roomData, { merge: true });
 }

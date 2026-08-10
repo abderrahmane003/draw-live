@@ -49,25 +49,25 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
 
     setLoadingRooms(true);
     const roomsRef = collection(db, 'rooms');
-    const q = query(roomsRef, orderBy('lastModified', 'desc'), limit(12));
 
     const unsub = onSnapshot(
-      q,
+      roomsRef,
       (snapshot) => {
-        const rooms: RoomInfo[] = [];
+        const roomsList: RoomInfo[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          rooms.push({
+          roomsList.push({
             id: docSnap.id,
             name: data.name || `Tableau #${docSnap.id}`,
             createdAt: data.createdAt || Date.now(),
-            lastModified: data.lastModified || Date.now(),
+            lastModified: data.lastModified || data.createdAt || Date.now(),
             clearTimestamp: data.clearTimestamp || 0,
-            isPrivate: data.isPrivate || false,
+            isPrivate: !!data.isPrivate,
             password: data.password || undefined,
           });
         });
-        setOpenRooms(rooms);
+        roomsList.sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+        setOpenRooms(roomsList.slice(0, 12));
         setLoadingRooms(false);
       },
       (err) => {

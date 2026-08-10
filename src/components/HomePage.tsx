@@ -103,10 +103,9 @@ export function HomePage() {
   // Subscribe to rooms in Firestore
   useEffect(() => {
     const roomsRef = collection(db, 'rooms');
-    const q = query(roomsRef, orderBy('lastModified', 'desc'), limit(30));
 
     const unsubRooms = onSnapshot(
-      q,
+      roomsRef,
       (snapshot) => {
         const fetchedRooms: RoomInfo[] = [];
         snapshot.forEach((docSnap) => {
@@ -115,43 +114,26 @@ export function HomePage() {
             id: docSnap.id,
             name: data.name || `Tableau #${docSnap.id}`,
             createdAt: data.createdAt || Date.now(),
-            lastModified: data.lastModified || Date.now(),
+            lastModified: data.lastModified || data.createdAt || Date.now(),
             clearTimestamp: data.clearTimestamp || 0,
-            isPrivate: data.isPrivate || false,
+            isPrivate: !!data.isPrivate,
             password: data.password || undefined,
           });
         });
 
-        if (fetchedRooms.length === 0) {
-          setRooms([]);
-          setLoading(false);
-          return;
-        }
+        // Sort in memory by lastModified descending
+        fetchedRooms.sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
 
-        const roomPresenceMap: Record<string, number> = {};
+        // Limit to 30 rooms
+        const topRooms = fetchedRooms.slice(0, 30);
 
-        fetchedRooms.forEach((room) => {
-          const presenceRef = collection(db, 'rooms', room.id, 'presence');
-          onSnapshot(presenceRef, (presenceSnap) => {
-            const now = Date.now();
-            let count = 0;
-            presenceSnap.forEach((pDoc) => {
-              const pData = pDoc.data();
-              if (now - (pData.lastSeen || 0) < 25000) {
-                count++;
-              }
-            });
-            roomPresenceMap[room.id] = count;
-
-            setRooms(
-              fetchedRooms.map((r) => ({
-                ...r,
-                activeUsersCount: roomPresenceMap[r.id] || 0,
-              }))
-            );
-            setLoading(false);
-          });
-        });
+        setRooms(
+          topRooms.map((r) => ({
+            ...r,
+            activeUsersCount: 0,
+          }))
+        );
+        setLoading(false);
       },
       (err) => {
         console.error('Error fetching rooms:', err);

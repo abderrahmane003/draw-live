@@ -5,14 +5,8 @@ import {
   setDoc,
   updateDoc,
   onSnapshot,
-  query,
-  orderBy,
-  where,
   getDoc,
-  getDocFromServer,
   deleteDoc,
-  writeBatch,
-  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Stroke, StrokeType, UserPresence, RoomInfo, Point } from '../types';
@@ -30,7 +24,6 @@ export function useWhiteboard(
   const [isConnected, setIsConnected] = useState<boolean>(() => {
     return typeof navigator !== 'undefined' ? navigator.onLine : true;
   });
-  const [retryTrigger, setRetryTrigger] = useState<number>(0);
 
   const retryConnection = useCallback(async () => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -40,24 +33,13 @@ export function useWhiteboard(
     try {
       if (roomId) {
         const roomRef = doc(db, 'rooms', roomId);
-        await getDocFromServer(roomRef);
+        await getDoc(roomRef);
         setIsConnected(true);
       }
     } catch (err) {
-      console.warn('Firestore server ping check:', err);
-      // Trigger snapshot listener re-subscription
-      setRetryTrigger((prev) => prev + 1);
+      console.warn('Firestore ping check:', err);
     }
   }, [roomId]);
-
-  // Periodic auto-retry ping when offline
-  useEffect(() => {
-    if (isConnected) return;
-    const interval = setInterval(() => {
-      retryConnection();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [isConnected, retryConnection]);
 
   // Track browser online / offline state
   useEffect(() => {
@@ -87,22 +69,25 @@ export function useWhiteboard(
     if (!roomId) return;
 
     const roomRef = doc(db, 'rooms', roomId);
-    getDoc(roomRef).then((snapshot) => {
-      if (!snapshot.exists()) {
-        const newRoom = {
-          id: roomId,
-          createdAt: Date.now(),
-          lastModified: Date.now(),
-          clearTimestamp: 0,
-          name: `Tableau #${roomId}`,
-        };
-        setDoc(roomRef, newRoom).catch((err) =>
-          console.error('Error creating room doc:', err)
-        );
-      }
-    }).catch((err) => {
-      console.warn('Error reading room doc:', err);
-    });
+    getDoc(roomRef)
+      .then((snapshot) => {
+        if (!snapshot.exists()) {
+          const newRoom: RoomInfo = {
+            id: roomId,
+            createdAt: Date.now(),
+            lastModified: Date.now(),
+            clearTimestamp: 0,
+            name: `Tableau #${roomId}`,
+            isPrivate: false,
+          };
+          setDoc(roomRef, newRoom, { merge: true }).catch((err) =>
+            console.error('Error creating room doc:', err)
+          );
+        }
+      })
+      .catch((err) => {
+        console.warn('Error reading room doc:', err);
+      });
 
     // Listen to Room metadata
     const unsubRoom = onSnapshot(
@@ -119,7 +104,7 @@ export function useWhiteboard(
     );
 
     return () => unsubRoom();
-  }, [roomId, retryTrigger]);
+  }, [roomId]);
 
   const isBlocked = roomInfo?.isPrivate === true && !isAuthorized;
 
@@ -168,7 +153,7 @@ export function useWhiteboard(
     );
 
     return () => unsubStrokes();
-  }, [roomId, userId, isBlocked, retryTrigger]);
+  }, [roomId, userId, isBlocked]);
 
   // Listen to presences in real-time
   useEffect(() => {
@@ -182,10 +167,22 @@ export function useWhiteboard(
         const now = Date.now();
         const list: UserPresence[] = [];
         snapshot.forEach((docSnap) => {
-          const data = docSnap.data() as UserPresence;
+          const data = docSnap.data();
           // Filter out users inactive for > 20 seconds
           if (now - (data.lastSeen || 0) < 20000) {
-            list.push(data);
+            list.push({
+              userId: data.userId,
+              userName: data.userName || 'Anonyme',
+              userColor: data.userColor || '#EC4899',
+              cursor: data.cursor || null,
+              isDrawing: !!data.isDrawing,
+              drawingPoints: data.drawingPoints || undefined,
+              drawingTool: data.drawingTool || undefined,
+              drawingPenType: data.drawingPenType || undefined,
+              drawingColor: data.drawingColor || undefined,
+              drawingSize: data.drawingSize || undefined,
+              lastSeen: data.lastSeen || 0,
+            });
           }
         });
         setPresences(list);
@@ -196,7 +193,7 @@ export function useWhiteboard(
     );
 
     return () => unsubPresence();
-  }, [roomId, isBlocked, retryTrigger]);
+  }, [roomId, isBlocked]);
 
   // Track previous drawing status to detect drawing end transition
   const wasDrawingRef = useRef<boolean>(false);
@@ -220,15 +217,15 @@ export function useWhiteboard(
       const isDrawingEnded = wasDrawingRef.current && !isDrawing;
       wasDrawingRef.current = isDrawing;
 
-      // Throttle setDoc writes to max 1 write per 100ms while moving or drawing,
+      // Throttle setDoc writes to max 1 write per 80ms while moving or drawing,
       // but send immediately when drawing ends to clear live preview cleanly.
-      if (!isDrawingEnded && now - lastPresenceUpdateRef.current < 100) {
+      if (!isDrawingEnded && now - lastPresenceUpdateRef.current < 80) {
         return;
       }
       lastPresenceUpdateRef.current = now;
 
       const userPresenceRef = doc(db, 'rooms', roomId, 'presence', userId);
-      const payload: Partial<UserPresence> = {
+      const payload: Record<string, any> = {
         userId,
         userName,
         userColor,
@@ -240,11 +237,15 @@ export function useWhiteboard(
       if (isDrawing && drawingDetails?.points?.length) {
         payload.drawingPoints = drawingDetails.points;
         payload.drawingTool = drawingDetails.tool || 'pen';
-        payload.drawingPenType = (drawingDetails.penType as any) || 'stylo';
-        payload.drawingColor = drawingDetails.color || '#000000';
-        payload.drawingSize = drawingDetails.size || 6;
+        payload.drawingPenType = drawingDetails.penType || 'stylo';
+        payload.drawingColor = drawingDetails.color || userColor;
+        payload.drawingSize = drawingDetails.size || 5;
       } else {
         payload.drawingPoints = [];
+        payload.drawingTool = null;
+        payload.drawingPenType = null;
+        payload.drawingColor = null;
+        payload.drawingSize = null;
       }
 
       setDoc(userPresenceRef, payload, { merge: true }).catch(() => {});
@@ -389,3 +390,4 @@ export function useWhiteboard(
     retryConnection,
   };
 }
+
