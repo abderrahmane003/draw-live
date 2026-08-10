@@ -129,6 +129,8 @@ export function HomePage() {
           });
         });
 
+        console.log(`[Firestore] Rooms snapshot RECEIVED. Count: ${fetchedRooms.length}`);
+
         // Merge with local cached rooms so none are ever lost
         const cached = getCachedRooms();
         const roomMap = new Map<string, RoomInfo>();
@@ -147,7 +149,7 @@ export function HomePage() {
         setLoading(false);
       },
       (err) => {
-        console.warn('Rooms snapshot notice (quota or offline):', err);
+        console.error('[Firestore] Rooms snapshot ERROR:', err);
         const cached = getCachedRooms();
         setRooms(cached);
         setLoading(false);

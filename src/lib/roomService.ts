@@ -72,10 +72,13 @@ export async function createRoomInFirestore(
   addRoomToCache(roomData);
 
   try {
+    console.log(`[Firestore] Room WRITE START: rooms/${roomId}`);
     const roomRef = doc(db, 'rooms', roomId);
     await setDoc(roomRef, roomData);
+    console.log(`[Firestore] Room WRITE SUCCESS: rooms/${roomId}`);
   } catch (err) {
-    console.warn('Error creating room in Firestore:', err);
+    console.error(`[Firestore] Room WRITE ERROR: rooms/${roomId}`, err);
+    throw err;
   }
 }
 

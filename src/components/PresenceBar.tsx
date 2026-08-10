@@ -195,17 +195,19 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
       {/* Right Items: Profile edit button, Trash Clear button, Green Download button */}
       <div className="flex items-center gap-1.5 sm:gap-2">
         {/* Connection status indicator */}
-        <div className="flex items-center gap-1 px-2 py-1 sm:px-2.5 rounded-xl bg-white border-2 border-slate-900 text-[10px] sm:text-[11px] text-slate-900 font-black shadow-xs">
+        <div className={`flex items-center gap-1 px-2 py-1 sm:px-2.5 rounded-xl border-2 border-slate-900 text-[10px] sm:text-[11px] font-black shadow-xs ${
+          isConnected ? 'bg-emerald-100 text-emerald-950' : 'bg-rose-100 text-rose-950'
+        }`}>
           {isConnected ? (
             <>
               <Wifi className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
-              <span className="hidden sm:inline">En ligne ⚡</span>
+              <span className="hidden sm:inline">Synchronisé ⚡</span>
               <span className="sm:hidden">⚡</span>
             </>
           ) : (
             <>
-              <WifiOff className="w-3.5 h-3.5 text-rose-500 animate-pulse stroke-[3]" />
-              <span className="hidden sm:inline">Hors ligne</span>
+              <WifiOff className="w-3.5 h-3.5 text-rose-600 animate-pulse stroke-[3]" />
+              <span className="hidden sm:inline">Déconnecté</span>
               <span className="sm:hidden">⚠️</span>
             </>
           )}

@@ -3,19 +3,24 @@ import { getAuth, signInAnonymously, onAuthStateChanged, User } from 'firebase/a
 import { getFirestore, doc, getDocFromServer, Firestore } from 'firebase/firestore';
 import appletConfig from '../../firebase-applet-config.json';
 
+function getValidConfigValue(envVal: string | undefined, configVal: string | undefined): string {
+  if (envVal && !envVal.includes('your_') && envVal.trim() !== '') {
+    return envVal.trim();
+  }
+  return configVal || '';
+}
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || appletConfig.apiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || appletConfig.authDomain,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || appletConfig.projectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || appletConfig.storageBucket,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || appletConfig.messagingSenderId,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || appletConfig.appId,
+  apiKey: getValidConfigValue(import.meta.env.VITE_FIREBASE_API_KEY, appletConfig.apiKey),
+  authDomain: getValidConfigValue(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, appletConfig.authDomain),
+  projectId: getValidConfigValue(import.meta.env.VITE_FIREBASE_PROJECT_ID, appletConfig.projectId),
+  storageBucket: getValidConfigValue(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, appletConfig.storageBucket),
+  messagingSenderId: getValidConfigValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, appletConfig.messagingSenderId),
+  appId: getValidConfigValue(import.meta.env.VITE_FIREBASE_APP_ID, appletConfig.appId),
 };
 
-const databaseId =
-  appletConfig.firestoreDatabaseId && appletConfig.firestoreDatabaseId !== '(default)'
-    ? appletConfig.firestoreDatabaseId
-    : undefined;
+const rawDbId = getValidConfigValue(import.meta.env.VITE_FIREBASE_DATABASE_ID, appletConfig.firestoreDatabaseId);
+const databaseId = rawDbId && rawDbId !== '(default)' ? rawDbId : undefined;
 
 const app: FirebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
@@ -55,21 +60,35 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path,
   };
-  console.error('Firestore Error:', JSON.stringify(errInfo));
+  console.error('[Firestore ERROR]', JSON.stringify(errInfo));
 }
 
-// Test connection on app load
-async function testConnection() {
+// Log diagnostic metadata at startup
+export async function runDiagnostics() {
+  console.log('[Firebase] Project ID:', firebaseConfig.projectId);
+  console.log('[Firebase] Auth Domain:', firebaseConfig.authDomain);
+  console.log('[Firebase] App ID:', firebaseConfig.appId);
+  console.log('[Firebase] Database:', databaseId || '(default)');
+
   try {
-    await getDocFromServer(doc(db, 'rooms', '_connection_test_'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase client appears to be offline or network restricted.');
-    }
+    const user = auth.currentUser;
+    console.log('[Firebase] User UID:', user ? user.uid : 'Initializing...');
+  } catch (e) {
+    console.error('[Firebase] Auth Check Error:', e);
+  }
+
+  try {
+    const testDocRef = doc(db, 'rooms', '_diagnostic_ping_');
+    await getDocFromServer(testDocRef);
+    console.log('[Firestore] Connection Test: SUCCESS');
+  } catch (err) {
+    console.warn('[Firestore] Connection Test Notice:', err);
   }
 }
-testConnection();
+
+runDiagnostics();
 
 export { signInAnonymously, onAuthStateChanged };
 export type { User };
+
 

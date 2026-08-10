@@ -23,13 +23,15 @@ export function useAuth() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
+        console.log('[Firebase] User UID:', currentUser.uid);
         setUser(currentUser);
       } else {
         try {
           const cred = await signInAnonymously(auth);
+          console.log('[Firebase] User UID (Anonymous):', cred.user.uid);
           setUser(cred.user);
-        } catch (_err) {
-          // Anonymous auth is restricted in this project configuration; fallbackUserId is used instead.
+        } catch (err) {
+          console.error('[Firebase] Anonymous Authentication Failed:', err);
           setUser(null);
         }
       }

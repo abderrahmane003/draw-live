@@ -118,10 +118,13 @@ export function useWhiteboard(
     const strokesRef = collection(db, 'rooms', roomId, 'strokes');
     const q = query(strokesRef, orderBy('timestamp', 'asc'));
 
+    console.log(`[Firestore] Stroke listener STARTED for room: ${roomId}`);
+
     const unsubStrokes = onSnapshot(
       q,
       (snapshot) => {
         setIsConnected(true);
+        console.log(`[Firestore] Stroke snapshot RECEIVED for room: ${roomId}`);
         const strokeList: Stroke[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
@@ -139,6 +142,8 @@ export function useWhiteboard(
             ...(data.text ? { text: data.text } : {}),
           });
         });
+
+        console.log(`[Firestore] Number of strokes: ${strokeList.length}`);
 
         // Synchronize with Firestore list while retaining recent local optimistic strokes
         setStrokes((prev) => {
@@ -168,12 +173,9 @@ export function useWhiteboard(
         }
       },
       (error) => {
-        console.warn('Firestore stroke listener notice:', error);
-        // On firestore quota / offline error, preserve local cached strokes
-        const cached = getCachedStrokes(roomId);
-        if (cached.length > 0) {
-          setStrokes(cached);
-        }
+        console.error(`[Firestore] Stroke listener ERROR for room: ${roomId}`, error);
+        setIsConnected(false);
+        handleFirestoreError(error, OperationType.LIST, `rooms/${roomId}/strokes`);
       }
     );
 
@@ -337,11 +339,17 @@ export function useWhiteboard(
     });
 
     try {
+      console.log(`[Firestore] Stroke WRITE START - room: ${roomId}, strokeId: ${strokeRef.id}`);
       await setDoc(strokeRef, firestorePayload);
       const roomRef = doc(db, 'rooms', roomId);
       updateDoc(roomRef, { lastModified: timestamp }).catch(() => {});
+      console.log(`[Firestore] Stroke WRITE SUCCESS - strokeId: ${strokeRef.id}`);
+      setIsConnected(true);
     } catch (err) {
-      console.warn('Firestore stroke write warning:', err);
+      console.error(`[Firestore] Stroke WRITE ERROR - strokeId: ${strokeRef.id}`, err);
+      setIsConnected(false);
+      handleFirestoreError(err, OperationType.WRITE, `rooms/${roomId}/strokes/${strokeRef.id}`);
+      throw err;
     }
 
     // Clear local redo stack when drawing a new stroke
