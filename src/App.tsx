@@ -9,6 +9,7 @@ import { RoomSelectorModal } from './components/RoomSelectorModal';
 import { ClearConfirmModal } from './components/ClearConfirmModal';
 import { HomePage } from './components/HomePage';
 import { Toast } from './components/Toast';
+import { PrivateRoomGate } from './components/PrivateRoomGate';
 import { StrokeType, PenType } from './types';
 import { generateRandomRoomId } from './lib/utils';
 import { Loader2 } from 'lucide-react';
@@ -31,6 +32,20 @@ function WhiteboardRoom() {
   const [isClearModalOpen, setIsClearModalOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const [isAuthorized, setIsAuthorized] = useState<boolean>(() => {
+    return sessionStorage.getItem(`room_auth_${cleanRoomId}`) === 'true';
+  });
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem(`room_auth_${cleanRoomId}`) === 'true';
+    setIsAuthorized(stored);
+  }, [cleanRoomId]);
+
+  const handleAuthorize = () => {
+    sessionStorage.setItem(`room_auth_${cleanRoomId}`, 'true');
+    setIsAuthorized(true);
+  };
+
   // Real-time whiteboard hook
   const {
     strokes,
@@ -43,7 +58,8 @@ function WhiteboardRoom() {
     canUndo,
     canRedo,
     isConnected,
-  } = useWhiteboard(cleanRoomId, userId, userName, userColor);
+    roomInfo,
+  } = useWhiteboard(cleanRoomId, userId, userName, userColor, isAuthorized);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -246,79 +262,86 @@ function WhiteboardRoom() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-white select-none">
-      {/* Top Header Bar matching screenshot */}
-      <PresenceBar
-        roomId={cleanRoomId}
-        activeUsers={activeUsers}
-        isConnected={isConnected}
-        userName={userName}
-        userColor={userColor}
-        onUpdateProfile={updateProfile}
-        onOpenRoomModal={() => setIsRoomModalOpen(true)}
-        onCopyLink={handleCopyLink}
-        onClear={() => setIsClearModalOpen(true)}
-        onDownload={handleDownloadPNG}
-      />
-
-      {/* Floating Bottom Toolbar */}
-      <Toolbar
-        activeTool={activeTool}
-        setActiveTool={setActiveTool}
-        activePenType={activePenType}
-        setActivePenType={setActivePenType}
-        currentColor={currentColor}
-        setCurrentColor={setCurrentColor}
-        brushSize={brushSize}
-        setBrushSize={setBrushSize}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={undoLastStroke}
-        onRedo={redoLastStroke}
-        onClear={() => setIsClearModalOpen(true)}
-        onDownload={handleDownloadPNG}
-        onCopyLink={handleCopyLink}
-        showGrid={showGrid}
-        setShowGrid={setShowGrid}
-      />
-
-      {/* Fullscreen Interactive Whiteboard Canvas Area */}
-      <main className="flex-1 relative w-full h-full overflow-hidden">
-        <WhiteboardCanvas
-          strokes={strokes}
-          activeTool={activeTool}
-          activePenType={activePenType}
-          currentColor={currentColor}
-          brushSize={brushSize}
-          onStrokeComplete={addStroke}
-          onCursorMove={updatePresence}
+    <PrivateRoomGate
+      roomId={cleanRoomId}
+      roomInfo={roomInfo}
+      isAuthorized={isAuthorized}
+      onAuthorize={handleAuthorize}
+    >
+      <div className="h-screen w-screen flex flex-col overflow-hidden bg-white select-none">
+        {/* Top Header Bar matching screenshot */}
+        <PresenceBar
+          roomId={cleanRoomId}
           activeUsers={activeUsers}
-          currentUserId={userId}
-          showGrid={showGrid}
+          isConnected={isConnected}
+          userName={userName}
+          userColor={userColor}
+          onUpdateProfile={updateProfile}
+          onOpenRoomModal={() => setIsRoomModalOpen(true)}
+          onCopyLink={handleCopyLink}
+          onClear={() => setIsClearModalOpen(true)}
+          onDownload={handleDownloadPNG}
         />
-      </main>
 
-      {/* Room Selector Modal */}
-      <RoomSelectorModal
-        currentRoomId={cleanRoomId}
-        isOpen={isRoomModalOpen}
-        onClose={() => setIsRoomModalOpen(false)}
-        onSelectRoom={handleRoomSelect}
-      />
+        {/* Floating Bottom Toolbar */}
+        <Toolbar
+          activeTool={activeTool}
+          setActiveTool={setActiveTool}
+          activePenType={activePenType}
+          setActivePenType={setActivePenType}
+          currentColor={currentColor}
+          setCurrentColor={setCurrentColor}
+          brushSize={brushSize}
+          setBrushSize={setBrushSize}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undoLastStroke}
+          onRedo={redoLastStroke}
+          onClear={() => setIsClearModalOpen(true)}
+          onDownload={handleDownloadPNG}
+          onCopyLink={handleCopyLink}
+          showGrid={showGrid}
+          setShowGrid={setShowGrid}
+        />
 
-      {/* Clear Canvas Warning Modal */}
-      <ClearConfirmModal
-        isOpen={isClearModalOpen}
-        onClose={() => setIsClearModalOpen(false)}
-        onConfirm={() => {
-          clearRoomCanvas();
-          showToast('Tout le tableau a été effacé');
-        }}
-      />
+        {/* Fullscreen Interactive Whiteboard Canvas Area */}
+        <main className="flex-1 relative w-full h-full overflow-hidden">
+          <WhiteboardCanvas
+            strokes={strokes}
+            activeTool={activeTool}
+            activePenType={activePenType}
+            currentColor={currentColor}
+            brushSize={brushSize}
+            onStrokeComplete={addStroke}
+            onCursorMove={updatePresence}
+            activeUsers={activeUsers}
+            currentUserId={userId}
+            showGrid={showGrid}
+          />
+        </main>
 
-      {/* Action Feedback Toast */}
-      <Toast message={toastMessage} />
-    </div>
+        {/* Room Selector Modal */}
+        <RoomSelectorModal
+          currentRoomId={cleanRoomId}
+          isOpen={isRoomModalOpen}
+          onClose={() => setIsRoomModalOpen(false)}
+          onSelectRoom={handleRoomSelect}
+        />
+
+        {/* Clear Canvas Warning Modal */}
+        <ClearConfirmModal
+          isOpen={isClearModalOpen}
+          onClose={() => setIsClearModalOpen(false)}
+          onConfirm={() => {
+            clearRoomCanvas();
+            showToast('Tout le tableau a été effacé');
+          }}
+        />
+
+        {/* Action Feedback Toast */}
+        <Toast message={toastMessage} />
+      </div>
+    </PrivateRoomGate>
   );
 }
 

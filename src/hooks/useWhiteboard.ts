@@ -20,7 +20,8 @@ export function useWhiteboard(
   roomId: string,
   userId: string | undefined,
   userName: string,
-  userColor: string
+  userColor: string,
+  isAuthorized: boolean = true
 ) {
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [presences, setPresences] = useState<UserPresence[]>([]);
@@ -65,7 +66,7 @@ export function useWhiteboard(
 
   // Listen to strokes in real-time
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || !isAuthorized) return;
 
     const strokesRef = collection(db, 'rooms', roomId, 'strokes');
     const q = query(strokesRef, orderBy('timestamp', 'asc'));
@@ -106,11 +107,11 @@ export function useWhiteboard(
     );
 
     return () => unsubStrokes();
-  }, [roomId, userId]);
+  }, [roomId, userId, isAuthorized]);
 
   // Listen to presences in real-time
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || !isAuthorized) return;
 
     const presenceRef = collection(db, 'rooms', roomId, 'presence');
 
@@ -128,7 +129,7 @@ export function useWhiteboard(
     });
 
     return () => unsubPresence();
-  }, [roomId]);
+  }, [roomId, isAuthorized]);
 
   // Update current user presence
   const updatePresence = useCallback(
@@ -179,7 +180,7 @@ export function useWhiteboard(
 
   // Heartbeat presence update
   useEffect(() => {
-    if (!roomId || !userId) return;
+    if (!roomId || !userId || !isAuthorized) return;
 
     updatePresence(null, false);
     const interval = setInterval(() => {
@@ -194,7 +195,7 @@ export function useWhiteboard(
         deleteDoc(userPresenceRef).catch(() => {});
       }
     };
-  }, [roomId, userId, updatePresence]);
+  }, [roomId, userId, isAuthorized, updatePresence]);
 
   // Filter valid strokes taking room clearTimestamp into account
   const validStrokes = strokes.filter((s) => {

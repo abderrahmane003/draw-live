@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { RoomInfo } from '../types';
-import { generateRandomRoomId } from '../lib/utils';
 import {
   Sparkles,
   ArrowRight,
@@ -20,9 +19,16 @@ import {
   Star,
   Smile,
   Wand2,
-  Gamepad2,
+  Lock,
+  Briefcase,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { RoomContextMenu } from './RoomContextMenu';
+import { DeleteRoomModal } from './DeleteRoomModal';
+import { CreateRoomModal } from './CreateRoomModal';
+import { Toast } from './Toast';
 
 interface RoomWithPresence extends RoomInfo {
   activeUsersCount: number;
@@ -41,6 +47,33 @@ export function HomePage() {
   const navigate = useNavigate();
   const { userName, userColor, updateProfile } = useAuth();
 
+  const roomsSectionRef = useRef<HTMLDivElement>(null);
+  const [isScrolledDown, setIsScrolledDown] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 200) {
+        setIsScrolledDown(true);
+      } else {
+        setIsScrolledDown(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToRooms = () => {
+    if (roomsSectionRef.current) {
+      roomsSectionRef.current.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 350, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const [inputRoomCode, setInputRoomCode] = useState('');
   const [rooms, setRooms] = useState<RoomWithPresence[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +81,24 @@ export function HomePage() {
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(userName);
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleShareRoom = (roomId: string) => {
+    const fullUrl = `${window.location.origin}/room/${roomId}`;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+      showToast('✓ Lien copié !');
+    }).catch(() => {
+      showToast('✓ Lien copié !');
+    });
+  };
 
   // Subscribe to rooms in Firestore
   useEffect(() => {
@@ -66,6 +117,8 @@ export function HomePage() {
             createdAt: data.createdAt || Date.now(),
             lastModified: data.lastModified || Date.now(),
             clearTimestamp: data.clearTimestamp || 0,
+            isPrivate: data.isPrivate || false,
+            password: data.password || undefined,
           });
         });
 
@@ -110,8 +163,7 @@ export function HomePage() {
   }, []);
 
   const handleCreateNewRoom = () => {
-    const newId = generateRandomRoomId();
-    navigate(`/room/${newId}`);
+    setIsCreateModalOpen(true);
   };
 
   const handleJoinByCode = (e: React.FormEvent) => {
@@ -237,7 +289,7 @@ export function HomePage() {
             <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <button
                 onClick={handleCreateNewRoom}
-                className="px-6 py-4 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-extrabold text-base transition-all border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-3"
+                className="px-6 py-4 rounded-2xl bg-pink-500 hover:bg-pink-400 text-white font-extrabold text-base transition-all border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-3 shrink-0"
               >
                 <Plus className="w-6 h-6 stroke-[3]" />
                 <span>Nouveau Tableau Blanc 🚀</span>
@@ -261,12 +313,24 @@ export function HomePage() {
                   <ArrowRight className="w-5 h-5 stroke-[3]" />
                 </button>
               </form>
+
+              {/* Briefcase Scroll Button to Jump Down */}
+              <button
+                type="button"
+                onClick={scrollToRooms}
+                className="px-4 py-3.5 rounded-2xl bg-amber-300 hover:bg-amber-200 text-slate-900 font-black text-xs sm:text-sm border-3 border-slate-900 cartoon-shadow cartoon-btn flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                title="Descendre aux tableaux"
+              >
+                <Briefcase className="w-5 h-5 text-slate-900 stroke-[2.5]" />
+                <span className="hidden lg:inline">Voir tableaux 💼</span>
+                <ChevronDown className="w-4 h-4 stroke-[3] animate-bounce text-slate-900" />
+              </button>
             </div>
           </div>
         </div>
 
         {/* Rooms Listing Section */}
-        <div className="space-y-6">
+        <div ref={roomsSectionRef} className="space-y-6 pt-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-4 border-slate-900 pb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-yellow-300 border-2 border-slate-900 flex items-center justify-center text-slate-900 font-extrabold cartoon-shadow">
@@ -330,38 +394,50 @@ export function HomePage() {
                   <div
                     key={room.id}
                     onClick={() => navigate(`/room/${room.id}`)}
-                    className={`group bg-white hover:bg-amber-50 border-3 border-slate-900 rounded-3xl p-5 transition-all duration-150 cursor-pointer cartoon-shadow cartoon-btn flex flex-col justify-between space-y-4 relative overflow-hidden`}
+                    className={`group bg-white hover:bg-amber-50 border-3 border-slate-900 rounded-3xl p-5 transition-all duration-150 cursor-pointer cartoon-shadow cartoon-btn flex flex-col justify-between space-y-4 relative`}
                   >
                     {/* Top Header of Card */}
                     <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className={`font-mono font-black text-xs px-2.5 py-1 rounded-xl border-2 border-slate-900 shadow-2xs ${colorStyle}`}>
                             #{room.id}
                           </span>
+                          {room.isPrivate && (
+                            <span className="bg-purple-200 text-purple-900 text-xs font-black px-2 py-0.5 rounded-lg border-2 border-slate-900 flex items-center gap-1 shadow-2xs">
+                              <Lock className="w-3 h-3 stroke-[2.5]" /> Privée
+                            </span>
+                          )}
                         </div>
                         <h4 className="font-black text-slate-900 text-base truncate pt-1 group-hover:text-pink-600 transition-colors">
                           {room.name}
                         </h4>
                       </div>
 
-                      {/* Online Drawer Badge */}
-                      <div
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border-2 border-slate-900 shrink-0 ${
-                          room.activeUsersCount > 0
-                            ? 'bg-emerald-300 text-slate-900'
-                            : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        <span
-                          className={`w-2.5 h-2.5 rounded-full border border-slate-900 ${
-                            room.activeUsersCount > 0 ? 'bg-emerald-600 animate-ping' : 'bg-slate-400'
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Online Drawer Badge */}
+                        <div
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black border-2 border-slate-900 ${
+                            room.activeUsersCount > 0
+                              ? 'bg-emerald-300 text-slate-900'
+                              : 'bg-slate-100 text-slate-600'
                           }`}
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full border border-slate-900 ${
+                              room.activeUsersCount > 0 ? 'bg-emerald-600 animate-ping' : 'bg-slate-400'
+                            }`}
+                          />
+                          <Users className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span>{room.activeUsersCount}</span>
+                        </div>
+
+                        {/* Room Context Menu ⋮ */}
+                        <RoomContextMenu
+                          roomId={room.id}
+                          onShare={handleShareRoom}
+                          onDelete={(id) => setDeletingRoomId(id)}
                         />
-                        <Users className="w-3.5 h-3.5 stroke-[2.5]" />
-                        <span>
-                          {room.activeUsersCount} {room.activeUsersCount === 1 ? 'dessinateur' : 'dessinateurs'}
-                        </span>
                       </div>
                     </div>
 
@@ -390,6 +466,56 @@ export function HomePage() {
           <span>Flowboard ✨ — Le tableau blanc en ligne 100% collaboratif & rigolo !</span>
         </p>
       </footer>
+
+      {/* Modals & Toast */}
+      <CreateRoomModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onRoomCreated={(newRoomId) => navigate(`/room/${newRoomId}`)}
+      />
+
+      <DeleteRoomModal
+        roomId={deletingRoomId}
+        isOpen={!!deletingRoomId}
+        onClose={() => setDeletingRoomId(null)}
+        onSuccess={() => showToast('Room supprimée avec succès.')}
+      />
+
+      {/* Floating Briefcase Scroll Button */}
+      <div className="fixed bottom-6 right-6 z-40 animate-in fade-in zoom-in-95 duration-200">
+        <button
+          type="button"
+          onClick={isScrolledDown ? scrollToTop : scrollToRooms}
+          className="group bg-yellow-300 hover:bg-yellow-200 text-slate-900 border-3 border-slate-900 rounded-2xl p-2.5 sm:p-3.5 cartoon-shadow-lg cartoon-btn flex items-center gap-3 font-black text-xs sm:text-sm shadow-2xl cursor-pointer"
+          title={isScrolledDown ? 'Remonter en haut' : 'Descendre dans la page 💼'}
+        >
+          <div className="w-10 h-10 rounded-xl bg-pink-500 border-2 border-slate-900 text-white flex items-center justify-center shrink-0 cartoon-shadow">
+            <Briefcase className="w-5 h-5 stroke-[2.5]" />
+          </div>
+          <div className="text-left hidden sm:block">
+            <div className="text-[10px] uppercase tracking-wider font-extrabold text-slate-700">
+              {isScrolledDown ? 'Naviguer' : 'Mallette magique'}
+            </div>
+            <div className="text-xs font-black flex items-center gap-1">
+              <span>{isScrolledDown ? 'Remonter en haut' : 'Descendre la page'}</span>
+              {isScrolledDown ? (
+                <ChevronUp className="w-4 h-4 stroke-[3]" />
+              ) : (
+                <ChevronDown className="w-4 h-4 stroke-[3] animate-bounce text-pink-600" />
+              )}
+            </div>
+          </div>
+          <div className="sm:hidden">
+            {isScrolledDown ? (
+              <ChevronUp className="w-5 h-5 stroke-[3]" />
+            ) : (
+              <ChevronDown className="w-5 h-5 stroke-[3] animate-bounce text-pink-600" />
+            )}
+          </div>
+        </button>
+      </div>
+
+      <Toast message={toastMessage} />
     </div>
   );
 }

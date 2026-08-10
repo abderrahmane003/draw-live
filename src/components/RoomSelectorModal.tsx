@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { generateRandomRoomId } from '../lib/utils';
-import { Sparkles, ArrowRight, X, Layers, Globe, Clock, Check } from 'lucide-react';
+import { Sparkles, ArrowRight, X, Layers, Globe, Clock, Check, Lock } from 'lucide-react';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { RoomInfo } from '../types';
+import { RoomContextMenu } from './RoomContextMenu';
+import { CreateRoomModal } from './CreateRoomModal';
+import { DeleteRoomModal } from './DeleteRoomModal';
+import { Toast } from './Toast';
 
 interface RoomSelectorModalProps {
   currentRoomId: string;
@@ -21,6 +24,24 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
   const [inputRoom, setInputRoom] = useState('');
   const [openRooms, setOpenRooms] = useState<RoomInfo[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleShareRoom = (roomId: string) => {
+    const fullUrl = `${window.location.origin}/room/${roomId}`;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+      showToast('✓ Lien copié !');
+    }).catch(() => {
+      showToast('✓ Lien copié !');
+    });
+  };
 
   // Subscribe to open rooms from Firestore
   useEffect(() => {
@@ -42,6 +63,8 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
             createdAt: data.createdAt || Date.now(),
             lastModified: data.lastModified || Date.now(),
             clearTimestamp: data.clearTimestamp || 0,
+            isPrivate: data.isPrivate || false,
+            password: data.password || undefined,
           });
         });
         setOpenRooms(rooms);
@@ -69,9 +92,7 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
   };
 
   const handleCreateNew = () => {
-    const newRoomId = generateRandomRoomId();
-    onSelectRoom(newRoomId);
-    onClose();
+    setIsCreateModalOpen(true);
   };
 
   const formatTimeAgo = (timestamp: number) => {
@@ -178,11 +199,16 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
                           : 'bg-white hover:bg-yellow-50'
                       }`}
                     >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-mono font-black text-xs text-slate-900 bg-white px-2 py-0.5 rounded-lg border-2 border-slate-900">
                             #{room.id}
                           </span>
+                          {room.isPrivate && (
+                            <span className="bg-purple-200 text-purple-900 text-[10px] font-black px-1.5 py-0.5 rounded-md border border-slate-900 flex items-center gap-0.5">
+                              <Lock className="w-2.5 h-2.5 stroke-[2.5]" /> Privée
+                            </span>
+                          )}
                           {isCurrent && (
                             <span className="text-[10px] font-black text-slate-900 bg-emerald-300 px-2 py-0.5 rounded-full border border-slate-900 flex items-center gap-0.5">
                               <Check className="w-3 h-3 stroke-[3]" /> En cours
@@ -195,20 +221,29 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
                         </p>
                       </div>
 
-                      <button
-                        onClick={() => {
-                          onSelectRoom(room.id);
-                          onClose();
-                        }}
-                        disabled={isCurrent}
-                        className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 border-2 border-slate-900 cartoon-btn ${
-                          isCurrent
-                            ? 'bg-emerald-400 text-slate-900 cursor-default'
-                            : 'bg-pink-500 text-white hover:bg-pink-400'
-                        }`}
-                      >
-                        {isCurrent ? 'Actif' : 'Entrer'}
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onSelectRoom(room.id);
+                            onClose();
+                          }}
+                          disabled={isCurrent}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all border-2 border-slate-900 cartoon-btn ${
+                            isCurrent
+                              ? 'bg-emerald-400 text-slate-900 cursor-default'
+                              : 'bg-pink-500 text-white hover:bg-pink-400'
+                          }`}
+                        >
+                          {isCurrent ? 'Actif' : 'Entrer'}
+                        </button>
+
+                        <RoomContextMenu
+                          roomId={room.id}
+                          onShare={handleShareRoom}
+                          onDelete={(id) => setDeletingRoomId(id)}
+                        />
+                      </div>
                     </div>
                   );
                 })}
@@ -217,6 +252,24 @@ export const RoomSelectorModal: React.FC<RoomSelectorModalProps> = ({
           </div>
         </div>
       </div>
+
+      <CreateRoomModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onRoomCreated={(newRoomId) => {
+          onSelectRoom(newRoomId);
+          onClose();
+        }}
+      />
+
+      <DeleteRoomModal
+        roomId={deletingRoomId}
+        isOpen={!!deletingRoomId}
+        onClose={() => setDeletingRoomId(null)}
+        onSuccess={() => showToast('Room supprimée avec succès.')}
+      />
+
+      <Toast message={toastMessage} />
     </div>
   );
 };

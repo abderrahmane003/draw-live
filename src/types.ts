@@ -46,6 +46,8 @@ export interface RoomInfo {
   lastModified: number;
   clearTimestamp?: number;
   name?: string;
+  isPrivate?: boolean;
+  password?: string;
 }
 
 export interface DrawingTool {
