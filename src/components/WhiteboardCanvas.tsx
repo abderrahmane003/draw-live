@@ -392,9 +392,9 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   // End Drawing
   const handleEnd = useCallback(() => {
     if (isDrawing) {
-      if (currentPoints.length > 0 && currentUserId) {
+      if (currentPoints.length > 0) {
         onStrokeComplete({
-          userId: currentUserId,
+          userId: currentUserId || 'anon',
           type: activeTool,
           penType: activePenType,
           color: currentColor,

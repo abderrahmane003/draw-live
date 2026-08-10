@@ -128,10 +128,9 @@ export function useWhiteboard(
     if (!roomId || isBlocked) return;
 
     const strokesRef = collection(db, 'rooms', roomId, 'strokes');
-    const q = query(strokesRef, orderBy('timestamp', 'asc'));
 
     const unsubStrokes = onSnapshot(
-      q,
+      strokesRef,
       (snapshot) => {
         setIsConnected(true);
         const strokeList: Stroke[] = [];
@@ -151,6 +150,8 @@ export function useWhiteboard(
             ...(data.text ? { text: data.text } : {}),
           });
         });
+        // Sort ascending by timestamp in memory
+        strokeList.sort((a, b) => a.timestamp - b.timestamp);
         setStrokes(strokeList);
 
         if (userId) {
@@ -197,6 +198,9 @@ export function useWhiteboard(
     return () => unsubPresence();
   }, [roomId, isBlocked, retryTrigger]);
 
+  // Track previous drawing status to detect drawing end transition
+  const wasDrawingRef = useRef<boolean>(false);
+
   // Update current user presence
   const updatePresence = useCallback(
     (
@@ -213,8 +217,12 @@ export function useWhiteboard(
       if (!roomId || !userId) return;
 
       const now = Date.now();
-      // Throttle presence updates to max once per 30ms unless drawing
-      if (now - lastPresenceUpdateRef.current < 30 && cursor !== null && !isDrawing) {
+      const isDrawingEnded = wasDrawingRef.current && !isDrawing;
+      wasDrawingRef.current = isDrawing;
+
+      // Throttle setDoc writes to max 1 write per 100ms while moving or drawing,
+      // but send immediately when drawing ends to clear live preview cleanly.
+      if (!isDrawingEnded && now - lastPresenceUpdateRef.current < 100) {
         return;
       }
       lastPresenceUpdateRef.current = now;
@@ -292,8 +300,8 @@ export function useWhiteboard(
     // Construct clean Firestore payload without undefined values
     const firestorePayload: Record<string, any> = {
       id: strokeRef.id,
-      userId: strokeData.userId || '',
-      userName: strokeData.userName || 'Anonyme',
+      userId: strokeData.userId || userId || 'anon',
+      userName: strokeData.userName || userName || 'Anonyme',
       type: strokeData.type || 'pen',
       penType: strokeData.penType || 'stylo',
       color: strokeData.color || '#000000',
