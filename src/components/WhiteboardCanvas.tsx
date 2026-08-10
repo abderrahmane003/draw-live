@@ -333,21 +333,18 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     if (!container) return null;
 
     const rect = container.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+
     const xPixel = clientX - rect.left;
     const yPixel = clientY - rect.top;
 
-    if (
-      xPixel < 0 ||
-      xPixel > rect.width ||
-      yPixel < 0 ||
-      yPixel > rect.height
-    ) {
-      return null;
-    }
+    // Clamp coordinates to [0, 1] so mobile touch drag near canvas borders works smoothly
+    const xClamped = Math.max(0, Math.min(1, xPixel / rect.width));
+    const yClamped = Math.max(0, Math.min(1, yPixel / rect.height));
 
     return {
-      x: xPixel / rect.width,
-      y: yPixel / rect.height,
+      x: Math.round(xClamped * 10000) / 10000,
+      y: Math.round(yClamped * 10000) / 10000,
     };
   };
 
@@ -374,6 +371,14 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
 
     if (isDrawing && point) {
       setCurrentPoints((prev) => {
+        // Skip duplicate or extremely close points to keep stroke payload light and smooth
+        if (prev.length > 0) {
+          const last = prev[prev.length - 1];
+          const distSq = (point.x - last.x) ** 2 + (point.y - last.y) ** 2;
+          if (distSq < 0.000004) {
+            return prev;
+          }
+        }
         const nextPoints = [...prev, point];
         onCursorMove(point, true, {
           points: nextPoints,

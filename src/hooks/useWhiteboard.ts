@@ -53,9 +53,9 @@ export function useWhiteboard(
   useEffect(() => {
     if (roomId) {
       const cached = getCachedStrokes(roomId);
-      if (cached.length > 0) {
-        setStrokes(cached);
-      }
+      setStrokes(cached);
+    } else {
+      setStrokes([]);
     }
   }, [roomId]);
 
@@ -140,12 +140,20 @@ export function useWhiteboard(
           });
         });
 
-        // Always merge with existing local cache if firestore list is non-empty
+        // Synchronize with Firestore list while retaining recent local optimistic strokes
         setStrokes((prev) => {
-          const combinedMap = new Map<string, Stroke>();
-          prev.forEach((s) => combinedMap.set(s.id, s));
-          strokeList.forEach((s) => combinedMap.set(s.id, s));
-          const result = Array.from(combinedMap.values()).sort(
+          const firestoreMap = new Map<string, Stroke>();
+          strokeList.forEach((s) => firestoreMap.set(s.id, s));
+
+          // Retain very recent local optimistic strokes (< 8s old) not yet echoed by Firestore
+          const now = Date.now();
+          prev.forEach((s) => {
+            if (!firestoreMap.has(s.id) && now - s.timestamp < 8000) {
+              firestoreMap.set(s.id, s);
+            }
+          });
+
+          const result = Array.from(firestoreMap.values()).sort(
             (a, b) => a.timestamp - b.timestamp
           );
           saveCachedStrokes(roomId, result);
@@ -185,8 +193,8 @@ export function useWhiteboard(
         const list: UserPresence[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data() as UserPresence;
-          // Filter out users inactive for > 35 seconds
-          if (now - (data.lastSeen || 0) < 35000) {
+          // Filter out users inactive for > 20 seconds
+          if (now - (data.lastSeen || 0) < 20000) {
             list.push(data);
           }
         });
@@ -200,7 +208,7 @@ export function useWhiteboard(
     return () => unsubPresence();
   }, [roomId, isBlocked]);
 
-  // Update current user presence (Throttled to 3000ms to preserve daily quota)
+  // Update current user presence (Fast sync when drawing, throttled when moving)
   const updatePresence = useCallback(
     (
       cursor: Point | null,
@@ -216,8 +224,9 @@ export function useWhiteboard(
       if (!roomId || !userId) return;
 
       const now = Date.now();
-      // Throttle presence updates to max once every 3000ms (3 seconds)
-      if (now - lastPresenceUpdateRef.current < 3000) {
+      // Throttle: 100ms when drawing for live line preview, 250ms when moving cursor
+      const minInterval = isDrawing ? 100 : 250;
+      if (now - lastPresenceUpdateRef.current < minInterval) {
         return;
       }
       lastPresenceUpdateRef.current = now;
@@ -233,7 +242,7 @@ export function useWhiteboard(
       };
 
       if (isDrawing && drawingDetails?.points?.length) {
-        payload.drawingPoints = drawingDetails.points.slice(-10); // only send recent points
+        payload.drawingPoints = drawingDetails.points.slice(-15); // Send last 15 points for smooth live preview
         payload.drawingTool = drawingDetails.tool || 'pen';
         payload.drawingPenType = (drawingDetails.penType as any) || 'stylo';
         payload.drawingColor = drawingDetails.color || '#000000';
