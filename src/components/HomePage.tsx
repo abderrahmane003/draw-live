@@ -219,7 +219,7 @@ export function HomePage() {
           </div>
           <div>
             <h1 className="font-extrabold text-slate-900 text-xl sm:text-2xl tracking-wide flex items-center gap-2">
-              Flowboard ✨
+              Lets Draw ✨
             </h1>
             <p className="text-xs font-bold text-slate-800">
               Le tableau blanc rigolo & magique !

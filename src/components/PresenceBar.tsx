@@ -98,7 +98,7 @@ export const PresenceBar: React.FC<PresenceBarProps> = ({
         <button
           onClick={() => navigate('/')}
           className="w-8 h-8 sm:w-9 sm:h-9 bg-emerald-400 hover:bg-emerald-300 border-2 border-slate-900 rounded-xl flex items-center justify-center text-slate-950 font-black shrink-0 cartoon-shadow cartoon-btn cursor-pointer"
-          title="Accueil Flowboard"
+          title="Accueil Lets Draw"
         >
           <Diamond className="w-4 h-4 fill-current stroke-[2.5]" />
         </button>
