@@ -416,28 +416,22 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   const handleEndRef = useRef(handleEnd);
   handleEndRef.current = handleEnd;
 
-  // Attach non-passive touch event listeners directly to prevent mobile browser scrolling/bouncing/pull-to-refresh
+  // Attach non-passive touch event listeners directly to prevent mobile browser scrolling/bouncing while drawing
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const preventTouch = (e: TouchEvent) => {
-      if (e.cancelable) {
-        e.preventDefault();
-      }
-    };
-
     const onTouchStart = (e: TouchEvent) => {
-      if (e.cancelable) e.preventDefault();
-      if (e.touches.length > 0) {
+      if (e.touches.length === 1) {
+        if (e.cancelable) e.preventDefault();
         const touch = e.touches[0];
         handleStartRef.current(touch.clientX, touch.clientY);
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.cancelable) e.preventDefault();
-      if (e.touches.length > 0) {
+      if (e.touches.length === 1) {
+        if (e.cancelable) e.preventDefault();
         const touch = e.touches[0];
         handleMoveRef.current(touch.clientX, touch.clientY);
       }
@@ -453,15 +447,11 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     container.addEventListener('touchend', onTouchEnd, { passive: false });
     container.addEventListener('touchcancel', onTouchEnd, { passive: false });
 
-    // Block pull-to-refresh at window level
-    window.addEventListener('touchmove', preventTouch, { passive: false });
-
     return () => {
       container.removeEventListener('touchstart', onTouchStart);
       container.removeEventListener('touchmove', onTouchMove);
       container.removeEventListener('touchend', onTouchEnd);
       container.removeEventListener('touchcancel', onTouchEnd);
-      window.removeEventListener('touchmove', preventTouch);
     };
   }, []);
 
